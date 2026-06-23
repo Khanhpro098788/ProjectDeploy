@@ -214,10 +214,10 @@ gcloud services enable run.googleapis.com artifactregistry.googleapis.com iam.go
 #### Bước 1 — Tạo Artifact Registry repository *(chỉ làm 1 lần)*
 
 ```bash
-gcloud artifacts repositories create fastapi-demo \
+gcloud artifacts repositories create fastapi-repo \
     --repository-format=docker \
     --location=asia-southeast1 \
-    --description="FastAPI Demo images"
+    --description="Kho chua Docker Image cua FastAPI Demo"
 ```
 
 #### Bước 2 — Cấu hình Docker authentication
@@ -229,20 +229,20 @@ gcloud auth configure-docker asia-southeast1-docker.pkg.dev
 #### Bước 3 — Build image
 
 ```bash
-docker build -t asia-southeast1-docker.pkg.dev/khanh-fastapi-deploy-937/fastapi-demo/fastapi-demo-project:latest .
+docker build -t asia-southeast1-docker.pkg.dev/khanh-fastapi-deploy-937/fastapi-repo/fastapi-demo-project:latest .
 ```
 
 #### Bước 4 — Push image lên Artifact Registry
 
 ```bash
-docker push asia-southeast1-docker.pkg.dev/khanh-fastapi-deploy-937/fastapi-demo/fastapi-demo-project:latest
+docker push asia-southeast1-docker.pkg.dev/khanh-fastapi-deploy-937/fastapi-repo/fastapi-demo-project:latest
 ```
 
 #### Bước 5 — Deploy lên Cloud Run
 
 ```bash
 gcloud run deploy fastapi-demo-project \
-    --image asia-southeast1-docker.pkg.dev/khanh-fastapi-deploy-937/fastapi-demo/fastapi-demo-project:latest \
+    --image asia-southeast1-docker.pkg.dev/khanh-fastapi-deploy-937/fastapi-repo/fastapi-demo-project:latest \
     --platform managed \
     --region asia-southeast1 \
     --allow-unauthenticated \
