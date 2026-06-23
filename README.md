@@ -523,6 +523,33 @@ npx sst deploy --stage dev
 
 ---
 
+### 🏆 Day 10 — Evaluation Project (Nghiệm thu Dự án)
+
+Ngày 10 là cột mốc Đánh giá (Evaluation) để chứng minh toàn bộ các yêu cầu của kỳ thực tập đã được đáp ứng hoàn hảo:
+
+#### 1. Phạm vi nghiệm thu (Scope Checklist)
+- [x] **Dockerized application**: Đã hoàn thành đa lớp (Multi-stage build) an toàn trong `Dockerfile`.
+- [x] **Image stored in Artifact Registry**: Đã cấu hình và lưu trữ thành công trên kho lưu trữ đám mây của GCP.
+- [x] **Infrastructure defined using SST**: Đã khởi tạo cấu trúc và dùng code TypeScript (`sst.config.ts`) để khai báo máy chủ Cloud Run.
+- [x] **GitHub Actions pipeline**: Hệ thống CI/CD đã tự động hoàn toàn việc Build & Deploy không cần thao tác tay.
+
+#### 2. Cách thức trình diễn (Showcase)
+Để chứng minh hệ thống hoạt động thực tế (End-to-end), bạn hãy làm bài kiểm tra cuối cùng:
+1. Mở file `src/main.py` trên máy của bạn.
+2. Sửa nội dung hàm `root()` thành một thông điệp mới (Ví dụ: `"message": "Dự án nghiệm thu Ngày 10 thành công!"`).
+3. Gõ lệnh:
+   ```bash
+   git add src/main.py
+   git commit -m "feat: hoàn thành đánh giá ngày 10"
+   git push
+   ```
+4. Lên trang Github Repo > Chọn mục **Actions**. Chụp màn hình khoảnh khắc Github Actions tự động chạy (màu xanh lá) để thêm vào Báo cáo thực tập.
+5. Truy cập đường link Cloud Run thực tế để thấy dòng chữ mới hiện ra!
+
+🎉 Chúc mừng bạn đã hoàn thành xuất sắc Giai đoạn 1 & 2 của quá trình thực tập!
+
+---
+
 ## ⚠️ Lưu ý quan trọng
 
 > **Dữ liệu không được lưu trữ lâu dài!**  

@@ -27,3 +27,7 @@ htmlcov/
 # OS
 .DS_Store
 Thumbs.db
+
+# Node & SST
+node_modules/
+.sst/
