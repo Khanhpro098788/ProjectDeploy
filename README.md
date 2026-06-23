@@ -405,19 +405,63 @@ Trong file `.github/workflows/ci.yml`, ta thêm **Job 2 (Build & Deploy)** để
 
 ### 📅 Day 8 — SST & Infrastructure as Code (IaC)
 
-Bắt đầu từ Tuần 2, chúng ta chuyển sang tư duy **Cơ sở hạ tầng dưới dạng Mã (IaC)**. Thay vì click tay tạo máy chủ hay gõ lệnh `gcloud`, ta dùng framework **SST (sst.dev)** để viết code thiết kế hạ tầng.
+Bắt đầu từ Tuần 2, chúng ta chuyển sang tư duy **Cơ sở hạ tầng dưới dạng Mã (IaC)**. Thay vì click tay tạo máy chủ hay gõ lệnh `gcloud`, ta dùng framework **SST (sst.dev)** để viết code thiết kế hạ tầng. 
 
-#### Bước 1 — Cấu trúc dự án SST
-- **`package.json`**: Quản lý phiên bản của SST.
-- **`sst.config.ts`**: Bản thiết kế toàn bộ hạ tầng (Cloud Run, VPC, Database...) bằng ngôn ngữ TypeScript.
+#### Bước 1 — Thuê "Kiến trúc sư" SST
+Để tải công cụ quản lý hạ tầng SST về, chúng ta cần tạo file `package.json` trong dự án:
 
-#### Bước 2 — Chiến lược Môi trường (Stages)
+Tạo file **`package.json`** với nội dung:
+```json
+{
+  "name": "fastapi-demo-project",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "sst dev",
+    "build": "sst build",
+    "deploy": "sst deploy",
+    "remove": "sst remove"
+  },
+  "devDependencies": {
+    "sst": "latest"
+  }
+}
+```
+*(Đây là thẻ chứng minh thư giúp hệ thống biết dự án này có sử dụng SST. Bạn không cần chạy lệnh `npm install` lúc này).*
+
+#### Bước 2 — Bản vẽ thiết kế Hạ tầng (`sst.config.ts`)
+Tạo file **`sst.config.ts`**. Đây sẽ là trung tâm điều khiển của hệ thống mạng.
+
+```typescript
+/// <reference path="./.sst/platform/config.d.ts" />
+
+export default $config({
+  app(input) {
+    return {
+      name: "fastapi-demo",
+      // Chiến lược giữ lại tài nguyên:
+      // - Nếu là môi trường production: Giữ lại tài nguyên (retain) để tránh xóa nhầm dữ liệu
+      // - Nếu là môi trường dev/staging: Xóa sạch (remove) khi chạy sst remove để tiết kiệm tiền
+      removal: input?.stage === "production" ? "retain" : "remove",
+      home: "aws",
+    };
+  },
+  async run() {
+    // ---------------------------------------------------------
+    // Định nghĩa Cơ sở hạ tầng (Infrastructure) tại đây
+    // ---------------------------------------------------------
+    
+    console.log(`Đang triển khai môi trường (stage): ${$app.stage}`);
+  },
+});
+```
+
+#### Bước 3 — Chiến lược Môi trường (Stages)
 Khái niệm cốt lõi của SST là **Stages**. Nó cho phép ta nhân bản (clone) toàn bộ hạ tầng thành nhiều phiên bản độc lập để kiểm thử an toàn. Dự án này quy định 3 môi trường:
 1. `dev`: Dành cho lập trình viên thử nghiệm trên máy cá nhân (`npx sst deploy --stage dev`). Dễ dàng xóa bỏ.
 2. `staging`: Bản nháp y hệt bản thật dùng để Test.
 3. `production`: Sản phẩm thật cho người dùng (`npx sst deploy --stage production`). Chế độ bảo vệ nghiêm ngặt, không tự động xóa tài nguyên.
 
-*(Xem file `sst.config.ts` để hiểu cách khai báo logic của 3 môi trường này).*
+*(Ở các Ngày tiếp theo, ta sẽ dùng lệnh `sst deploy` để ra lệnh cho Kiến trúc sư SST đọc bản vẽ `sst.config.ts` và tự động xây dựng máy chủ trên GCP!)*
 
 ---
 
