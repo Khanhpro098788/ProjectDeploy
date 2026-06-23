@@ -131,21 +131,39 @@ tests/test_products.py::test_delete_product_not_found  PASSED
 
 ---
 
-## 🐳 Docker
+## 🐳 📅 Day 2 — Docker Fundamentals
 
-### Build image
+### Bước 1 — Chuẩn bị Dockerfile & .dockerignore
+*(Đã cấu hình sẵn chuẩn production với Multi-stage build và bảo mật non-root)*
+
+### Bước 2 — Build image
 
 ```bash
-docker build -t fastapi-demo-project .
+docker build -t fastapi-demo-project:v1.0.0 .
 ```
 
-### Chạy container
+### Bước 3 — Chạy container
 
 ```bash
-docker run -p 8080:8080 fastapi-demo-project
+docker run -d -p 8080:8080 --name fastapi-test fastapi-demo-project:v1.0.0
 ```
 
 Truy cập: **http://localhost:8080/docs**
+
+### Bước 4 — Kiểm tra trạng thái
+
+```bash
+# Xem danh sách container đang chạy
+docker ps
+```
+
+### Bước 5 — Xem logs / Bắt bệnh
+
+```bash
+docker logs fastapi-test
+```
+
+*(Kết quả mong đợi: `Application startup complete.`)*
 
 ---
 
@@ -191,7 +209,7 @@ gcloud services enable run.googleapis.com artifactregistry.googleapis.com iam.go
 
 ---
 
-### 📅 Day 2+ — Build & Deploy *(làm mỗi lần muốn deploy)*
+### 📅 Day 3+ — Build & Deploy *(làm mỗi lần muốn deploy)*
 
 #### Bước 1 — Tạo Artifact Registry repository *(chỉ làm 1 lần)*
 
