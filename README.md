@@ -1,282 +1,421 @@
-# 🚀 Đồ Án Thực Tập: Cloud Engineering & DevOps
+# ☁️ Cloud Engineer Internship Portfolio
+**Dự án:** FastAPI Demo API | **Nền tảng:** Google Cloud Platform (GCP)
+**Công nghệ:** Docker, GitHub Actions, SST (IaC), Python (FastAPI)
 
-## 1. Tổng Quan Dự Án (Project Overview)
-
-Dự án này được xây dựng như một **Cẩm nang Hướng dẫn (Playbook)** nhằm học tập và thực hành các khái niệm nền tảng về Cloud Engineering. Dự án tập trung vào việc đóng gói, tự động hóa và triển khai phần mềm lên đám mây (Google Cloud), thay vì đi sâu vào logic lập trình.
-
-**Đặc điểm Ứng dụng mẫu (FastAPI Demo API):**
-- Xử lý danh sách sản phẩm mẫu.
-- **Không sử dụng cơ sở dữ liệu thật** (Dữ liệu lưu tạm trên bộ nhớ, reset khi khởi động lại).
-- **Không có giao diện frontend**, giao tiếp qua REST API & Swagger UI.
-
-### 🛠 Bảng Công Nghệ Sử Dụng
-
-| Công Nghệ | Vai Trò |
-| --- | --- |
-| **Python / FastAPI** | Xây dựng REST API Backend |
-| **Pytest** | Kiểm thử tự động (Automated testing) |
-| **Docker** | Đóng gói ứng dụng thành Container |
-| **Artifact Registry**| Lưu trữ Docker Image trên Google Cloud |
-| **Cloud Run** | Máy chủ Serverless chạy Container |
-| **Compute Engine** | Máy ảo (VM) để thực hành Networking |
-| **GitHub Actions** | Hệ thống tự động hóa CI/CD |
-| **SST (sst.dev)** | Quản lý Hạ tầng bằng Code (IaC) |
+Chào mừng đến với Cẩm nang Thực tập Cloud Engineering. Tài liệu này được thiết kế theo chuẩn lộ trình 4 tuần, ghi lại toàn bộ lý thuyết, mục tiêu và các dòng lệnh thực tế để tự động hóa một hệ thống Cloud Native hoàn chỉnh.
 
 ---
 
-## 2. Kiến Trúc Hệ Thống (System Architecture)
+# 📅 WEEK 1: Docker + GCP Foundations
+**Mục tiêu Tuần:** Xây dựng nền tảng vững chắc về Container hóa và sử dụng dòng lệnh Google Cloud (gcloud) để khởi tạo tài nguyên cơ bản.
 
-Mọi thay đổi từ máy tính lập trình viên đều phải đi qua luồng kiểm duyệt khắt khe trước khi lên môi trường mạng thực tế.
+## Day 1: GCP Setup & IAM Basics
+🎯 **Mục tiêu (Output):** Khởi tạo thành công GCP project và thiết lập Service Account (tài khoản người máy) sẵn sàng cho việc tự động hóa.
 
-```mermaid
-flowchart LR
-    A[Developer] -->|git push| B[GitHub Repo]
-    B --> C[GitHub Actions]
-    C -->|Test| D[Run Pytest]
-    D -->|Build| E[Docker Image]
-    E -->|Push| F[Artifact Registry]
-    F -->|Deploy| G[Cloud Run]
-    G --> H[Public FastAPI API]
+📖 **Lý thuyết học thuật:**
+- **VPC, Regions & Zones:** Hạ tầng vật lý của đám mây. Region là khu vực địa lý lớn (như Châu Á), Zone là các trung tâm dữ liệu nhỏ bên trong.
+- **IAM (Identity and Access Management):** Chốt chặn bảo mật số một. Giúp kiểm soát Ai (Identity) được làm Gì (Role) trên Tài nguyên nào.
+- **Least-Privilege:** Nguyên tắc bảo mật bắt buộc – Chỉ cấp những quyền tối thiểu nhất để hoàn thành công việc.
+
+🛠️ **Các bước thực hành & Câu lệnh:**
+```bash
+# 1. Đăng nhập vào Google Cloud CLI
+gcloud auth login
+
+# 2. Tạo Project mới
+gcloud projects create khanh-fastapi-deploy-937 --name="Khanh FastAPI Deploy"
+gcloud config set project khanh-fastapi-deploy-937
+
+# 3. Kích hoạt các API cần thiết
+gcloud services enable run.googleapis.com artifactregistry.googleapis.com iam.googleapis.com
+
+# 4. Tạo Service Account chuyên dụng cho CI/CD
+gcloud iam service-accounts create github-actions-bot --display-name="GitHub Actions Bot"
+
+# 5. Phân quyền (Roles) cho Service Account
+gcloud projects add-iam-policy-binding khanh-fastapi-deploy-937 \
+  --member="serviceAccount:github-actions-bot@khanh-fastapi-deploy-937.iam.gserviceaccount.com" \
+  --role="roles/run.admin"
 ```
-
----
-
-# 📚 WEEK 1: NỀN TẢNG DOCKER & GOOGLE CLOUD (GCP)
-
-**Mục tiêu Week 1:** Hiểu cơ chế hoạt động của Container (Docker), cách thao tác với nền tảng Google Cloud bằng dòng lệnh (CLI), và triển khai thành công một API lên mạng Internet một cách thủ công.
-
-## Day 1: GCP Setup and IAM Basics
-
-### 📖 Lý Thuyết Học Thuật
-- **Google Cloud Project**: Vùng cách ly chứa tài nguyên đám mây. Có *Project ID* (định danh duy nhất dùng cho dòng lệnh) và *Project Name*.
-- **IAM (Identity and Access Management)**: Hệ thống quản lý quyền truy cập. 
-- **Service Account**: "Người máy" (Bot) đại diện cho các phần mềm tự động hóa thay vì con người.
-- **Least Privilege (Đặc quyền Tối thiểu)**: Nguyên tắc bảo mật bắt buộc - chỉ cấp những quyền thực sự cần thiết.
-
-### 🛠️ Hướng Dẫn Thực Hiện
-| Bước | Hành Động | Lệnh / Cấu hình |
-| --- | --- | --- |
-| 1 | **Đăng nhập GCP** | `gcloud auth login` |
-| 2 | **Tạo Project** | `gcloud projects create khanh-fastapi-deploy-937` |
-| 3 | **Cấu hình mặc định**| `gcloud config set project khanh-fastapi-deploy-937` |
-| 4 | **Bật các API** | `gcloud services enable run.googleapis.com artifactregistry.googleapis.com iam.googleapis.com` |
-| 5 | **Tạo Service Account**| `gcloud iam service-accounts create github-actions-bot` |
-| 6 | **Cấp quyền IAM** | Cấp các role: `roles/run.admin`, `roles/artifactregistry.writer`, `roles/iam.serviceAccountUser` cho account vừa tạo. |
 
 ---
 
 ## Day 2: Docker Fundamentals
+🎯 **Mục tiêu (Output):** Chạy ứng dụng FastAPI cục bộ (local) bên trong một Docker Container thay vì chạy trực tiếp trên máy tính.
 
-### 📖 Lý Thuyết Học Thuật
-- **Docker Image**: Khuôn đúc sẵn (chỉ đọc) chứa OS, mã nguồn, thư viện.
-- **Docker Container**: Phiên bản "sống" đang chạy của Docker Image.
-- **Dockerfile & .dockerignore**: File cấu hình tạo Image và file giúp loại bỏ tệp rác (như `.env`, `__pycache__`) khỏi Image.
-- **Port Mapping**: Kỹ thuật kết nối cổng của máy tính thật vào cổng của Container.
+📖 **Lý thuyết học thuật:**
+- **Image vs Container:** Image là bản thiết kế đông lạnh (chỉ đọc), Container là phiên bản sống đang chạy của bản thiết kế đó.
+- **Layer Caching:** Docker build hình ảnh theo từng lớp. Việc sắp xếp lệnh trong `Dockerfile` khôn ngoan (ví dụ copy `requirements.txt` trước) sẽ tận dụng bộ nhớ đệm, giúp build cực nhanh.
+- **.dockerignore:** File chặn các rác/thư mục nhạy cảm (như `.env`, `__pycache__`) lọt vào trong Image.
 
-### 🛠️ Hướng Dẫn Thực Hiện
-| Bước | Hành Động | Lệnh / Cấu hình |
-| --- | --- | --- |
-| 1 | **Viết Dockerfile** | Khai báo môi trường Python, copy file, cài `requirements.txt` và gọi `uvicorn`. |
-| 2 | **Build Image** | `docker build -t fastapi-demo-project:v1.0.0 .` |
-| 3 | **Chạy Container** | `docker run -d -p 8080:8080 --name fastapi-test fastapi-demo-project:v1.0.0` |
-| 4 | **Kiểm tra Logs** | `docker logs fastapi-test` |
+🛠️ **Các bước thực hành & Câu lệnh:**
+```bash
+# 1. Build Docker Image từ thư mục hiện tại (.)
+docker build -t fastapi-demo-project:v1.0.0 .
+
+# 2. Chạy Container ẩn dưới nền (-d) và map cổng (8080:8080)
+docker run -d -p 8080:8080 --name fastapi-test fastapi-demo-project:v1.0.0
+
+# 3. Theo dõi log và trạng thái
+docker ps
+docker logs fastapi-test
+
+# 4. Dừng và xóa sau khi test xong
+docker stop fastapi-test
+docker rm fastapi-test
+```
 
 ---
 
 ## Day 3: Advanced Docker & Artifact Registry
+🎯 **Mục tiêu (Output):** Tối ưu hóa dung lượng Image và lưu trữ phiên bản an toàn trên kho đám mây Artifact Registry.
 
-### 📖 Lý Thuyết Học Thuật
-- **Multi-stage Build**: Kỹ thuật phân tách quá trình build Docker. Stage 1 dùng để tải công cụ biên dịch nặng. Stage 2 chỉ copy tệp đã hoàn thiện sang. Giúp Image nhẹ và an toàn.
-- **Non-root User**: Chạy ứng dụng bằng người dùng giới hạn quyền lực để chống Hacker leo thang đặc quyền.
-- **Artifact Registry**: Kho chứa Docker Image trên Google Cloud, thay thế Docker Hub.
+📖 **Lý thuyết học thuật:**
+- **Multi-stage Builds:** Tách quá trình build thành 2 giai đoạn: Giai đoạn 1 (Builder) chứa các bộ cài cồng kềnh, Giai đoạn 2 (Runtime) chỉ nhặt tệp chạy cuối cùng sang. Giúp Image thu nhỏ tối đa.
+- **Artifact Registry:** Nơi lưu trữ tập trung và an toàn các Docker Image của doanh nghiệp trên GCP.
 
-### 🛠️ Hướng Dẫn Thực Hiện
-| Bước | Hành Động | Lệnh / Cấu hình |
-| --- | --- | --- |
-| 1 | **Tạo Kho GCP** | `gcloud artifacts repositories create fastapi-repo --repository-format=docker --location=asia-southeast1` |
-| 2 | **Xác thực Docker** | `gcloud auth configure-docker asia-southeast1-docker.pkg.dev` |
-| 3 | **Gắn Tag Image** | `docker tag fastapi-demo-project:v1.0.0 asia-southeast1-docker.pkg.dev/khanh-fastapi-deploy-937/fastapi-repo/fastapi-demo-project:v1.0.0` |
-| 4 | **Push Image** | `docker push asia-southeast1-docker.pkg.dev/khanh-fastapi-deploy-937/fastapi-repo/fastapi-demo-project:v1.0.0` |
+🛠️ **Các bước thực hành & Câu lệnh:**
+```bash
+# 1. Tạo kho lưu trữ trên Artifact Registry
+gcloud artifacts repositories create fastapi-repo \
+  --repository-format=docker \
+  --location=asia-southeast1 \
+  --description="Kho chua Docker Image"
+
+# 2. Cấu hình xác thực Docker CLI với GCP
+gcloud auth configure-docker asia-southeast1-docker.pkg.dev
+
+# 3. Gắn tag cho Image theo chuẩn GCP
+docker tag fastapi-demo-project:v1.0.0 \
+  asia-southeast1-docker.pkg.dev/khanh-fastapi-deploy-937/fastapi-repo/fastapi-demo-project:v1.0.0
+
+# 4. Push Image lên đám mây
+docker push asia-southeast1-docker.pkg.dev/khanh-fastapi-deploy-937/fastapi-repo/fastapi-demo-project:v1.0.0
+```
 
 ---
 
 ## Day 4: Deploying Containers to Cloud Run
+🎯 **Mục tiêu (Output):** Triển khai mã nguồn thành công lên một dịch vụ Public Cloud Run có thể truy cập bằng trình duyệt.
 
-### 📖 Lý Thuyết Học Thuật
-- **Cloud Run**: Dịch vụ Serverless, tự động mở rộng (Scale) dựa trên số lượng truy cập và tự động tắt (Scale to zero) khi không có khách.
-- **Biến `PORT`**: Cloud Run yêu cầu ứng dụng phải lắng nghe ở cổng được quy định bởi hệ thống (thường là 8080).
+📖 **Lý thuyết học thuật:**
+- **Cloud Run Execution Model:** Máy chủ Serverless. Tự động "bừng tỉnh" khi có Request và tự động "tắt ngủ" (Scale to zero) khi không có ai dùng.
+- **Revision:** Mỗi lần tung bản cập nhật mới sẽ sinh ra một "Bản sửa đổi" (Revision). Nếu bản mới lỗi, ta có thể lùi (rollback) về Revision cũ lập tức.
 
-### 🛠️ Hướng Dẫn Thực Hiện
-| Bước | Hành Động | Lệnh / Cấu hình |
-| --- | --- | --- |
-| 1 | **Deploy dịch vụ** | `gcloud run deploy fastapi-demo-project --image=... --region=asia-southeast1 --allow-unauthenticated --port=8080` |
-| 2 | **Kiểm tra Web** | Truy cập đường link xuất hiện trên Terminal. Truy cập `/docs` để xem Swagger UI. |
-
----
-
-## Day 5: Networking Basics and Compute Engine
-
-### 📖 Lý Thuyết Học Thuật
-- **VPC & Subnet**: Mạng riêng ảo và việc chia nhỏ IP nội bộ theo khu vực.
-- **Firewall Rule**: Tường lửa quyết định thiết bị nào được phép đi vào mạng.
-- **Compute Engine (VM)**: Máy ảo vật lý, bạn tự cài hệ điều hành và tự quản trị mọi thứ, khác với Serverless Cloud Run.
-
-### 🛠️ Hướng Dẫn Thực Hiện
-| Bước | Hành Động | Lệnh / Cấu hình |
-| --- | --- | --- |
-| 1 | **Tạo Mạng (VPC)** | Cấu hình mạng custom `khanh-vpc` và subnet `10.0.1.0/24`. |
-| 2 | **Mở Tường Lửa** | Mở Firewall cổng `tcp:22` để cho phép kết nối SSH. |
-| 3 | **Khởi tạo Máy Ảo**| Tạo một Compute Engine kết nối với Subnet vừa tạo, dùng SSH truy cập kiểm tra. |
-
----
-
-## 📌 TỔNG KẾT WEEK 1
-
-| Chỉ Tiêu | Đánh Giá (Status) | Bằng Chứng / Output |
-| --- | --- | --- |
-| **GCP Foundation** | Hoàn thành xuất sắc | Tài khoản Service Account được phân quyền chuẩn Least Privilege. |
-| **Docker Build** | Hoàn thành xuất sắc | File `Dockerfile` áp dụng Multi-stage & Non-root user. |
-| **Lưu Trữ Mây** | Hoàn thành xuất sắc | Image nằm gọn trong thư mục Artifact Registry ở Singapore. |
-| **Triển Khai Web** | Hoàn thành xuất sắc | API có thể gọi công khai qua link `https://*.run.app/docs`. |
-| **Mạng & Máy Ảo** | Nắm vững lý thuyết | Phân biệt rõ sự ưu việt của Serverless so với Máy ảo (VM) truyền thống. |
-
----
----
-
-# 📚 WEEK 2: TỰ ĐỘNG HÓA CI/CD & INFRASTRUCTURE AS CODE (SST)
-
-**Mục tiêu Week 2:** Áp dụng tự động hóa 100%. Mọi việc từ kiểm thử code, tạo máy chủ, thiết lập mạng đều không được dùng tay hay giao diện, mà phải dùng Code và Robot thực thi.
-
-## Day 6: GitHub Actions Fundamentals (Continuous Integration - CI)
-
-### 📖 Lý Thuyết Học Thuật
-- **CI (Tích hợp liên tục)**: Hệ thống Robot tự động tải code của bạn về, cài đặt và chạy Test để chắc chắn code mới không gây ra lỗi (bug).
-- **GitHub Runner**: Máy ảo dùng một lần (như `ubuntu-latest`) do GitHub cấp phát để chạy luồng.
-
-### 🛠️ Hướng Dẫn Thực Hiện
-| Bước | Hành Động | Lệnh / Cấu hình |
-| --- | --- | --- |
-| 1 | **Viết file CI** | Tạo file `.github/workflows/ci.yml`. |
-| 2 | **Cấu hình Triggers**| Khai báo chạy tự động khi có lệnh `push` vào nhánh `main`. |
-| 3 | **Cấu hình Jobs** | Viết Job `test-python-code` sử dụng `actions/setup-python@v5`. |
-| 4 | **Chạy Pytest** | Ra lệnh cho Robot cài `requirements.txt` và gọi lệnh `pytest -v`. |
-
----
-
-## Day 7: Continuous Deployment with GitHub Actions (CD)
-
-### 📖 Lý Thuyết Học Thuật
-- **CD (Triển khai liên tục)**: Nếu hệ thống CI chạy Test thành công, Robot sẽ tự động gọi lệnh Deploy lên máy chủ Cloud thật mà không cần con người nhúng tay.
-- **GitHub Secrets**: Két sắt mã hóa ẩn các đoạn mã mật khẩu của GCP.
-
-### 🛠️ Hướng Dẫn Thực Hiện
-| Bước | Hành Động | Lệnh / Cấu hình |
-| --- | --- | --- |
-| 1 | **Tạo Secret** | Tạo biến `GCP_CREDENTIALS` chứa mã JSON của Service Account trên Settings GitHub. |
-| 2 | **Viết Job Deploy**| Thêm Job `build-and-deploy` phụ thuộc (`needs`) vào Job Test. |
-| 3 | **Xác thực GCP** | Sử dụng `google-github-actions/auth@v2` kết hợp biến Secret. |
-| 4 | **Đóng gói & Kéo**| Robot tự Build Docker và Push thẳng vào Artifact Registry. |
-
----
-
-## Day 8: SST Core Concepts
-
-### 📖 Lý Thuyết Học Thuật
-- **Infrastructure as Code (IaC)**: Code hóa máy chủ. Dùng các tệp văn bản để khai báo hệ thống mạng, thay vì bấm chuột thủ công.
-- **SST (sst.dev)**: Framework IaC mạnh mẽ giúp viết mã thiết kế hạ tầng bằng TypeScript.
-- **Environment Strategy (Đa môi trường)**: Quản lý riêng biệt môi trường `dev` (Nháp), `staging` (Kiểm thử) và `production` (Sản phẩm).
-
-### 🛠️ Hướng Dẫn Thực Hiện
-| Bước | Hành Động | Lệnh / Cấu hình |
-| --- | --- | --- |
-| 1 | **Khai báo SST** | Tạo `package.json` cài đặt module `sst`. |
-| 2 | **Bản vẽ gốc** | Tạo file `sst.config.ts`. Định nghĩa biến `$app.stage` (Chế độ môi trường). |
-| 3 | **Thiết lập Bảo vệ**| Viết logic: Nếu là môi trường `production`, bật chế độ `retain` (cấm xóa nhầm máy chủ). |
-
----
-
-## Day 9: SST and Cloud Run Infrastructure
-
-### 📖 Lý Thuyết Học Thuật
-- **Mapping Cloud Run qua Code**: Ánh xạ từng tham số của lệnh `gcloud` thành các thuộc tính lập trình hướng đối tượng.
-- **Reproducible Deployment**: Đảm bảo 100 kỹ sư tải mã nguồn về chạy thì đều ra kết quả hạ tầng chính xác y hệt nhau.
-
-### 🛠️ Hướng Dẫn Thực Hiện
-| Bước | Hành Động | Lệnh / Cấu hình |
-| --- | --- | --- |
-| 1 | **Cài đặt Pulumi** | `npm install @pulumi/gcp @pulumi/pulumi` |
-| 2 | **Viết Code IaC** | Dùng TypeScript trong `sst.config.ts` để gọi hàm `new gcp.cloudrun.Service(...)`. Khai báo Image, Port 8080. |
-| 3 | **Mở quyền Public**| Viết hàm `new gcp.cloudrun.IamMember(...)` để mở cổng `allUsers`. |
-| 4 | **Triển khai** | Chạy `npx sst deploy --stage dev` để IaC tự động đẩy lên Cloud Run. |
-
----
-
-## Day 10: Evaluation Project (Nghiệm thu Dự án)
-
-Ngày 10 không có kiến thức mới. Đây là bài test chứng minh tính toàn vẹn và khả năng hoạt động liên hoàn (End-to-End) của toàn bộ hệ thống.
-
-### 🛠️ Hướng Dẫn Thực Hiện (Showcase)
-1. Hãy sửa thử nội dung file `src/main.py`.
-2. Chạy lệnh: `git add .`, `git commit -m "Update"`, `git push`.
-3. Lên tab **Actions** của GitHub để xem Robot Test mã nguồn, tự động Build và tự động Deploy lên GCP.
-4. Mở URL của trang web xem thay đổi có hiển thị không.
-
----
-
-## 📌 TỔNG KẾT WEEK 2
-
-| Yêu Cầu Nghiệm Thu | Bằng Chứng Lịch Sử (Evidence) | Đánh Giá (Status) |
-| --- | --- | --- |
-| **Kiểm Thử Tự Động** | Workflow chạy Pytest trước khi Build. | Đạt chuẩn (Completed) |
-| **CI/CD Pipeline** | File `ci.yml` bảo mật qua GitHub Secrets. | Đạt chuẩn (Completed) |
-| **Đa Môi Trường** | Phân định `dev/staging/prod` qua tham số `stage`. | Đạt chuẩn (Completed) |
-| **Hạ Tầng Dưới Mã (IaC)**| File `sst.config.ts` khai báo Cloud Run thành công. | Đạt chuẩn (Completed) |
-| **Tự Động Hóa 100%** | Developer chỉ cần viết Code và `git push`. | Hoàn hảo (Completed) |
-
----
-
-# 📖 TÀI LIỆU THAM KHẢO & KHẮC PHỤC LỖI
-
-## 1. Danh sách API (Endpoints)
-
-| Method | Endpoint | Mô Tả |
-| --- | --- | --- |
-| GET | `/` | Chào mừng & kiểm tra kết nối API cơ bản |
-| GET | `/health` | Kiểm tra trạng thái sức khỏe dịch vụ |
-| GET | `/api/products` | Danh sách tất cả sản phẩm |
-| GET | `/api/products/{id}`| Xem chi tiết sản phẩm |
-| POST | `/api/products` | Thêm mới sản phẩm |
-| PUT | `/api/products/{id}`| Cập nhật sản phẩm |
-| DELETE| `/api/products/{id}`| Xóa sản phẩm |
-
-## 2. Hướng dẫn Code Local (Developer Guide)
-
+🛠️ **Các bước thực hành & Câu lệnh:**
 ```bash
-# 1. Bật môi trường ảo (Windows PowerShell)
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
+# 1. Deploy Container từ Artifact Registry lên Cloud Run
+gcloud run deploy fastapi-demo-project \
+  --image=asia-southeast1-docker.pkg.dev/khanh-fastapi-deploy-937/fastapi-repo/fastapi-demo-project:v1.0.0 \
+  --region=asia-southeast1 \
+  --platform=managed \
+  --allow-unauthenticated \
+  --port=8080
 
-# 2. Cài thư viện
-pip install -r requirements.txt
-
-# 3. Khởi động ứng dụng
-uvicorn src.main:app --reload
-
-# 4. Chạy kiểm thử tự động trên máy
-pytest -v
+# 2. Copy URL hiển thị trên terminal để truy cập web
 ```
 
-## 3. Khắc Phục Lỗi Nhanh (Troubleshooting)
+---
 
-| Vấn Đề | Nguyên Nhân | Cách Khắc Phục |
-| --- | --- | --- |
-| **Container Crash ngay khi bật** | Code lỗi hoặc Web Server (Uvicorn) chạy sai cổng. | Đảm bảo chạy với cấu hình host `0.0.0.0` và cổng lấy theo biến `PORT`. |
-| **Push Artifact Registry báo lỗi** | Chưa xác thực Docker CLI với Google Cloud. | Chạy lệnh `gcloud auth configure-docker`. |
-| **GitHub Actions Unauthorized** | Khai báo sai biến Secret hoặc Service Account Key đã hết hạn. | Tạo lại Key mới trên GCP và nạp lại vào GitHub Secrets. |
-| **Lỗi SSH vào Compute Engine** | Tường lửa chưa mở Port 22 cho IP máy tính cá nhân. | Bổ sung Firewall Rule cho phép kết nối `tcp:22`. |
+## Day 5: Networking Basics & Compute Engine
+🎯 **Mục tiêu (Output):** Hiểu cách mạng nội bộ hoạt động bằng cách dựng một máy ảo (VM) bảo mật trong một mạng tùy chỉnh.
 
-## 4. Bảo Mật Hệ Thống (Security Considerations)
-- ❌ **TỐI KỴ**: Tuyệt đối không commit file `.env` hoặc file `gcp-key.json` lên mạng. Luôn cập nhật `.gitignore`.
-- ❌ **TỐI KỴ**: Không mở cổng 22 (SSH) cho `0.0.0.0/0` (Toàn cầu). Chỉ cho phép IP tĩnh cá nhân.
-- ✔️ **BẮT BUỘC**: Cấu hình `USER appuser` trong Dockerfile (Cấm dùng quyền Root).
-- ✔️ **BẮT BUỘC**: Cài đặt Budget Alert 1 USD trên GCP để cảnh báo lập tức nếu bị hacker gắn tool đào tiền ảo.
+📖 **Lý thuyết học thuật:**
+- **VPC (Virtual Private Cloud):** Mạng nội bộ ảo, cô lập hệ thống của bạn với Internet bên ngoài.
+- **Firewall Rules:** Tường lửa bảo vệ. Xác định rõ cổng nào (port) và địa chỉ IP nào được phép đi vào (Ingress) hoặc đi ra (Egress).
+
+🛠️ **Các bước thực hành & Câu lệnh:**
+```bash
+# 1. Tạo mạng VPC tùy chỉnh
+gcloud compute networks create khanh-vpc --subnet-mode=custom
+
+# 2. Tạo Subnet (Mạng con)
+gcloud compute networks subnets create khanh-subnet \
+  --network=khanh-vpc \
+  --region=asia-southeast1 \
+  --range=10.0.1.0/24
+
+# 3. Mở cổng Firewall cho SSH (Nên giới hạn theo IP cá nhân)
+gcloud compute firewall-rules create allow-ssh \
+  --network=khanh-vpc \
+  --allow=tcp:22 \
+  --source-ranges=0.0.0.0/0
+
+# 4. Tạo Compute Engine VM
+gcloud compute instances create khanh-server \
+  --subnet=khanh-subnet \
+  --zone=asia-southeast1-a
+```
+
+---
+
+# 📅 WEEK 2: GitHub Actions CI/CD + sst.dev IaC
+**Mục tiêu Tuần:** Chuyển đổi toàn bộ thao tác thủ công thành các luồng tự động (Pipelines) và Code hóa cơ sở hạ tầng (IaC).
+
+## Day 6: GitHub Actions Fundamentals (CI)
+🎯 **Mục tiêu (Output):** Xây dựng luồng CI (Continuous Integration) tự động chạy Test mỗi khi có người push code.
+
+📖 **Lý thuyết học thuật:**
+- **CI/CD Pipeline:** Hệ thống băng chuyền. Code mới đẩy lên sẽ tự động được kiểm duyệt (Build & Test) trước khi đưa ra ngoài (Deploy).
+- **GitHub Runner:** Máy ảo dùng 1 lần do GitHub cung cấp để chạy các tác vụ trong Pipeline.
+
+🛠️ **Các bước thực hành & Câu lệnh:**
+```yaml
+# 1. Tạo file .github/workflows/ci.yml
+# 2. Khai báo Job Test (Ghi vào file)
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements.txt
+      - run: pytest -v
+```
+
+---
+
+## Day 7: Continuous Deployment with GitHub Actions
+🎯 **Mục tiêu (Output):** Tự động hóa hoàn toàn quy trình đóng gói (Docker) và tung bản cập nhật lên Cloud Run.
+
+📖 **Lý thuyết học thuật:**
+- **Service Account Keys / Secrets:** Két sắt an toàn của GitHub giúp ẩn các mật khẩu (credentials) khi thao tác với GCP.
+- **Rollback Flow:** Luồng quay lui. Khi CD đẩy bản lỗi, ta có thể rollback trên Cloud Run UI hoặc Revert commit Git để CD tự build lại bản cũ.
+
+🛠️ **Các bước thực hành & Câu lệnh:**
+```yaml
+# 1. Tạo Secret GCP_CREDENTIALS trên GitHub Settings
+# 2. Cấu hình Job Deploy trong ci.yml:
+  deploy:
+    needs: test
+    steps:
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
+      - run: gcloud auth configure-docker asia-southeast1-docker.pkg.dev
+      # (Cấu hình Docker Build & Gcloud Run Deploy tiếp theo...)
+```
+
+---
+
+## Day 8: sst.dev Core Concepts
+🎯 **Mục tiêu (Output):** Khởi tạo thành công cấu trúc dự án SST và thiết lập chiến lược Quản lý Môi trường.
+
+📖 **Lý thuyết học thuật:**
+- **Infrastructure as Code (IaC):** Dùng code (TypeScript) để quy định kiến trúc mạng lưới, thay vì cấu hình bằng giao diện bấm chuột dễ sai sót.
+- **SST Stages:** Cơ chế nhân bản môi trường độc lập cực nhanh (ví dụ: `dev` cho tester, `prod` cho khách hàng).
+
+🛠️ **Các bước thực hành & Câu lệnh:**
+```bash
+# 1. Khởi tạo package.json cho SST
+npm init -y
+npm install sst
+
+# 2. Tạo file sst.config.ts với nội dung thiết lập Stage (Bảo vệ prod, xóa dev)
+```
+
+---
+
+## Day 9: sst.dev + Cloud Run Infrastructure
+🎯 **Mục tiêu (Output):** Khai báo và triển khai Cloud Run hoàn toàn bằng SST, loại bỏ hoàn toàn việc gõ lệnh `gcloud`.
+
+📖 **Lý thuyết học thuật:**
+- **SST Constructs:** Các mảnh ghép lập trình (ví dụ `gcp.cloudrun.Service`) được map trực tiếp với các dịch vụ mạng của Google.
+- **Reproducible Environments:** Mọi tài nguyên mạng được tạo ra đều chính xác 100% nhờ chạy chung một kịch bản code.
+
+🛠️ **Các bước thực hành & Câu lệnh:**
+```bash
+# 1. Cài đặt thư viện giao tiếp GCP của Pulumi/SST
+npm install @pulumi/gcp @pulumi/pulumi
+
+# 2. Khai báo Cloud Run bằng Code trong sst.config.ts
+# (Sử dụng lệnh new gcp.cloudrun.Service và new gcp.cloudrun.IamMember)
+
+# 3. Triển khai kiến trúc tự động
+npx sst deploy --stage dev
+```
+
+---
+
+## Day 10: Evaluation Project
+🎯 **Mục tiêu (Output):** Hoàn thiện 100% đánh giá cá nhân: Code Docker hóa, IaC chạy mượt mà, CI/CD tự động, Image lưu chuẩn chỉ.
+
+📖 **Lý thuyết học thuật:**
+- Đây là cột mốc tổng kết chặng 1. Đảm bảo toàn bộ kiến trúc được kết nối liền mạch: Code -> GitHub Actions -> Artifact Registry -> SST -> Cloud Run.
+
+🛠️ **Các bước thực hành & Câu lệnh:**
+```bash
+# 1. Thay đổi text hiển thị trong mã nguồn src/main.py
+# 2. Ghi nhận thay đổi lên Git để kích hoạt luồng tự động
+git add src/main.py
+git commit -m "feat: passed day 10 evaluation"
+git push
+# 3. Theo dõi màn hình GitHub Actions chuyển sang màu xanh (Success).
+```
+
+---
+
+# 📅 WEEK 3: Security, IAM & Networking in Practice
+**Mục tiêu Tuần:** Đưa dự án đạt chuẩn bảo mật doanh nghiệp (Production-ready).
+
+## Day 11: Advanced IAM
+🎯 **Mục tiêu (Output):** Thiết kế lại ma trận phân quyền (IAM Matrix) với tài khoản CI/CD giới hạn quyền lực tuyệt đối.
+
+📖 **Lý thuyết học thuật:**
+- **Permission Auditing:** Dò tìm các đặc quyền đang bị cấp thừa mứa và thu hồi lại để chống Hacker đánh cắp mật khẩu leo thang (Privilege Escalation).
+- **Runtime Service Account:** Tài khoản chuyên dụng được gán cho chính Cloud Run lúc hoạt động, thay vì dùng tài khoản mặc định của Compute Engine.
+
+🛠️ **Các bước thực hành & Câu lệnh:**
+```bash
+# 1. Tạo Service Account riêng cho Runtime Cloud Run
+gcloud iam service-accounts create cloudrun-runtime-sa
+
+# 2. Thu hồi các quyền rác không cần thiết của CI/CD bot
+gcloud projects remove-iam-policy-binding khanh-fastapi-deploy-937 \
+  --member="serviceAccount:github-actions-bot@..." \
+  --role="roles/owner" # (Ví dụ minh họa nếu cấp sai)
+```
+
+---
+
+## Day 12: Private Services & Access Control
+🎯 **Mục tiêu (Output):** Cấu hình Cloud Run thành dịch vụ nội bộ (Private), không cho phép Public Internet truy cập trực tiếp.
+
+📖 **Lý thuyết học thuật:**
+- **IAM-based service invocation:** Chế độ ẩn của Cloud Run. Người gọi (Client) bắt buộc phải truyền chuỗi mã JWT Token vào Header để chứng minh danh tính.
+
+🛠️ **Các bước thực hành & Câu lệnh:**
+```bash
+# 1. Xóa bỏ quyền allUsers của Cloud Run (Biến nó thành Private)
+gcloud run services remove-iam-policy-binding fastapi-demo-project \
+  --member="allUsers" \
+  --role="roles/run.invoker" \
+  --region=asia-southeast1
+
+# 2. Sinh mã Identity Token để gọi thử dịch vụ bảo mật
+gcloud auth print-identity-token
+
+# 3. Dùng cURL gọi API kèm Token
+curl -H "Authorization: Bearer $(gcloud auth print-identity-token)" https://[CLOUD_RUN_URL]
+```
+
+---
+
+## Day 13: Networking in Practice
+🎯 **Mục tiêu (Output):** Cấu hình Ingress/Egress cho Cloud Run và test các luồng bị chặn.
+
+📖 **Lý thuyết học thuật:**
+- **Ingress/Egress Control:** Ingress là quy định thiết bị nào được phép đi vào máy chủ. Egress là quy định máy chủ được phép kết nối ra dịch vụ ngoài nào (ví dụ: cấm máy chủ tự ý gọi ra Internet để tải virus).
+
+🛠️ **Các bước thực hành & Câu lệnh:**
+```bash
+# 1. Giới hạn Ingress: Chỉ cho phép lưu lượng từ mạng nội bộ (Internal)
+gcloud run deploy fastapi-demo-project \
+  --ingress=internal \
+  --region=asia-southeast1 \
+  --image=...
+```
+
+---
+
+## Day 14: System Design for Cloud Engineers
+🎯 **Mục tiêu (Output):** Thiết kế sơ đồ kiến trúc Capstone Project cuối cùng và phân tích các kịch bản chịu lỗi.
+
+📖 **Lý thuyết học thuật:**
+- **Stateless vs Stateful:** Cloud Run yêu cầu ứng dụng Stateless (không giữ trạng thái trong ổ cứng) để có thể nhân bản ra 1000 containers cùng lúc. Stateful (có lưu trữ) phù hợp với cơ sở dữ liệu.
+
+🛠️ **Các bước thực hành & Câu lệnh:**
+- *Ngày này chủ yếu dùng các công cụ vẽ sơ đồ (như Draw.io / Mermaid) để thảo luận và Document.*
+
+---
+
+## Day 15: Refactor & Hardening Day
+🎯 **Mục tiêu (Output):** Dọn dẹp lại toàn bộ file rác, tối ưu CI Pipeline và tối ưu tốc độ Docker build.
+
+📖 **Lý thuyết học thuật:**
+- **Hardening:** Kỹ thuật gia cố hệ thống. Rà soát mọi lỗ hổng bảo mật, dọn các image cũ để tối ưu chi phí lưu trữ.
+
+🛠️ **Các bước thực hành & Câu lệnh:**
+```bash
+# 1. Dọn dẹp các bản nháp trên Cloud Run
+gcloud run revisions list
+gcloud run revisions delete [REVISION_CU]
+
+# 2. Kiểm tra lại toàn bộ file sst.config.ts để dọn code rác
+```
+
+---
+
+# 📅 WEEK 4: Observability & Final Capstone
+**Mục tiêu Tuần:** Triển khai hệ thống giám sát, cảnh báo lỗi và bảo vệ luận án thực tập (Capstone Project).
+
+## Day 16: Cloud Logging
+🎯 **Mục tiêu (Output):** Cấu hình Logs và truy vấn nhật ký lỗi chuyên nghiệp.
+
+📖 **Lý thuyết học thuật:**
+- **Centralized Logging:** Thu thập toàn bộ log từ hàng trăm containers về một nơi duy nhất (Cloud Logging) để dễ dàng dò tìm bug.
+
+🛠️ **Các bước thực hành & Câu lệnh:**
+```bash
+# 1. Đọc trực tiếp log của Cloud Run qua CLI
+gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=fastapi-demo-project" --limit 10
+```
+
+---
+
+## Day 17: Cloud Monitoring & Alerting
+🎯 **Mục tiêu (Output):** Tạo Dashboard biểu đồ trực quan và cài đặt cảnh báo khi máy chủ sập.
+
+📖 **Lý thuyết học thuật:**
+- **Metrics & Dashboards:** Đo lường các chỉ số (CPU, RAM, Request Time) và trực quan hóa thành biểu đồ.
+- **Alerting Policies:** Luật cảnh báo. Ví dụ: Nếu tỷ lệ lỗi HTTP 500 vượt mức 5%, lập tức gửi tin nhắn vào Slack/Email của kỹ sư trực hệ thống.
+
+🛠️ **Các bước thực hành & Câu lệnh:**
+- *Sử dụng giao diện Google Cloud Monitoring UI để tạo Alert Policy và Dashboard hoặc viết code Terraform/SST để định nghĩa biểu đồ.*
+
+---
+
+## Day 18: Production Readiness & Failure Testing
+🎯 **Mục tiêu (Output):** Viết Kịch bản ứng phó sự cố (Runbooks) và giả lập lỗi sập hệ thống (Crash).
+
+📖 **Lý thuyết học thuật:**
+- **Postmortem:** Tài liệu khám nghiệm tử thi hệ thống sau khi xảy ra sự cố. Ghi rõ nguyên nhân (Root Cause) và biện pháp phòng tránh trong tương lai.
+
+🛠️ **Các bước thực hành & Câu lệnh:**
+```bash
+# 1. Giả lập một lỗi sập bằng cách deploy image lỗi
+# 2. Lập tức thực hiện lệnh Rollback khẩn cấp
+gcloud run services update-traffic fastapi-demo-project --to-revisions=[REVISION_ON_DINH]=100
+```
+
+---
+
+## Day 19: Final Capstone Build
+🎯 **Mục tiêu (Output):** Khâu nối toàn bộ hạ tầng từ Week 1 đến Week 4 thành một dự án End-to-End tuyệt đối tự động.
+
+📖 **Lý thuyết học thuật:**
+- Cột mốc hoàn thiện tác phẩm tốt nghiệp. Toàn bộ hạ tầng do SST quản lý, Docker hóa bảo mật, CI/CD băng chuyền chuẩn xác, đi kèm hệ thống cảnh báo Monitoring.
+
+🛠️ **Các bước thực hành & Câu lệnh:**
+- *Rà soát và tổng duyệt lại toàn bộ các công đoạn đã thiết lập.*
+
+---
+
+## Day 20: Final Evaluation
+🎯 **Mục tiêu (Output):** Thuyết trình và biểu diễn (Live Demo) đồ án tốt nghiệp trước Mentor.
+
+📖 **Lý thuyết học thuật:**
+- Đánh giá toàn diện năng lực của Kỹ sư Cloud (Cloud Engineer) với các trụ cột: Architecture (Kiến trúc), Automation (Tự động hóa), Security (Bảo mật), và Observability (Giám sát).
+
+🛠️ **Các bước thực hành & Câu lệnh:**
+- **Capstone Requirements:**
+  - [x] All infrastructure defined with SST
+  - [x] Clean Dockerfile and reproducible builds
+  - [x] GitHub Actions CI/CD pipeline
+  - [x] Secure IAM with least privilege
+  - [x] Monitoring dashboards and alerting
+  - [x] Log queries and runbooks
+  - [x] Live debugging demonstration
