@@ -269,6 +269,57 @@ gcloud run services describe fastapi-demo-project \
 
 ---
 
+### 📅 Day 5 — Networking & Compute Engine *(Xây dựng hệ thống riêng)*
+
+Thay vì dùng Cloud Run, hôm nay chúng ta tự thiết lập một khu vực mạng (VPC) và khởi tạo máy ảo (VM) trên Compute Engine để kiểm soát 100% hệ thống.
+
+#### Bước 0 — Bật API Compute Engine
+```bash
+gcloud services enable compute.googleapis.com
+```
+
+#### Bước 1 — Tạo Custom VPC
+*(Tạo mạng ảo độc lập tên `khanh-vpc`)*
+```bash
+gcloud compute networks create khanh-vpc --subnet-mode=custom
+```
+
+#### Bước 2 — Phân lô bán nền (Tạo Subnet)
+*(Cắt dải IP `10.0.1.0/24` tại Singapore)*
+```bash
+gcloud compute networks subnets create khanh-subnet \
+    --network=khanh-vpc \
+    --region=asia-southeast1 \
+    --range=10.0.1.0/24
+```
+
+#### Bước 3 — Tạo Firewall Rule (Mở cổng SSH)
+*(Mở cổng 22 để có thể điều khiển máy chủ từ xa)*
+```bash
+gcloud compute firewall-rules create khanh-allow-ssh \
+    --network=khanh-vpc \
+    --allow=tcp:22 \
+    --direction=INGRESS
+```
+
+#### Bước 4 — Khởi tạo Máy ảo (VM)
+*(Mua một máy ảo cấu hình `e2-micro` và đặt vào Subnet đã tạo)*
+```bash
+gcloud compute instances create khanh-server \
+    --zone=asia-southeast1-a \
+    --machine-type=e2-micro \
+    --network=khanh-vpc \
+    --subnet=khanh-subnet
+```
+
+#### Bước 5 — SSH vào Máy ảo
+*(Chiếm quyền điều khiển máy ảo)*
+```bash
+gcloud compute ssh khanh-server --zone=asia-southeast1-a
+```
+
+---
+
 ## ⚠️ Lưu ý quan trọng
 
 > **Dữ liệu không được lưu trữ lâu dài!**  
