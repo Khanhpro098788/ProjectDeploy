@@ -151,21 +151,49 @@ Truy cập: **http://localhost:8080/docs**
 
 ## ☁️ Deploy lên Google Cloud Run
 
-### 1. Đăng nhập và chọn project
+### 📅 Day 1 — Thiết lập GCP lần đầu *(chỉ làm 1 lần)*
+
+#### Bước 1 — Đăng nhập Google Cloud
 
 ```bash
 gcloud auth login
-gcloud config set project YOUR_PROJECT_ID
 ```
 
-### 2. Bật các API cần thiết
+#### Bước 2 — Tạo GCP Project mới
 
 ```bash
-gcloud services enable run.googleapis.com
-gcloud services enable artifactregistry.googleapis.com
+gcloud projects create khanh-fastapi-deploy-937 --name="Khanh FastAPI Deploy"
 ```
 
-### 3. Tạo Artifact Registry repository *(chỉ làm 1 lần)*
+#### Bước 3 — Đặt project làm mặc định
+
+```bash
+gcloud config set project khanh-fastapi-deploy-937
+```
+
+#### Bước 4 — Kiểm tra project đang dùng
+
+```bash
+# Xem project ID hiện tại
+gcloud config get-value project
+
+# Xem chi tiết project
+gcloud projects describe khanh-fastapi-deploy-937
+```
+
+#### Bước 5 — Bật các API cần thiết
+
+```bash
+gcloud services enable run.googleapis.com artifactregistry.googleapis.com iam.googleapis.com
+```
+
+> ✅ **Sau Day 1**, project GCP đã sẵn sàng. Không cần lặp lại các bước này.
+
+---
+
+### 📅 Day 2+ — Build & Deploy *(làm mỗi lần muốn deploy)*
+
+#### Bước 1 — Tạo Artifact Registry repository *(chỉ làm 1 lần)*
 
 ```bash
 gcloud artifacts repositories create fastapi-demo \
@@ -174,31 +202,36 @@ gcloud artifacts repositories create fastapi-demo \
     --description="FastAPI Demo images"
 ```
 
-### 4. Build & Push image
+#### Bước 2 — Cấu hình Docker authentication
 
 ```bash
-# Cấu hình Docker authentication
 gcloud auth configure-docker asia-southeast1-docker.pkg.dev
-
-# Build image
-docker build -t asia-southeast1-docker.pkg.dev/YOUR_PROJECT_ID/fastapi-demo/fastapi-demo-project:latest .
-
-# Push lên Artifact Registry
-docker push asia-southeast1-docker.pkg.dev/YOUR_PROJECT_ID/fastapi-demo/fastapi-demo-project:latest
 ```
 
-### 5. Deploy lên Cloud Run
+#### Bước 3 — Build image
+
+```bash
+docker build -t asia-southeast1-docker.pkg.dev/khanh-fastapi-deploy-937/fastapi-demo/fastapi-demo-project:latest .
+```
+
+#### Bước 4 — Push image lên Artifact Registry
+
+```bash
+docker push asia-southeast1-docker.pkg.dev/khanh-fastapi-deploy-937/fastapi-demo/fastapi-demo-project:latest
+```
+
+#### Bước 5 — Deploy lên Cloud Run
 
 ```bash
 gcloud run deploy fastapi-demo-project \
-    --image asia-southeast1-docker.pkg.dev/YOUR_PROJECT_ID/fastapi-demo/fastapi-demo-project:latest \
+    --image asia-southeast1-docker.pkg.dev/khanh-fastapi-deploy-937/fastapi-demo/fastapi-demo-project:latest \
     --platform managed \
     --region asia-southeast1 \
     --allow-unauthenticated \
     --port 8080
 ```
 
-### 6. Lấy URL service
+#### Bước 6 — Lấy URL service
 
 ```bash
 gcloud run services describe fastapi-demo-project \
@@ -219,8 +252,11 @@ Sau khi deploy xong, truy cập `<URL>/docs` để xem Swagger UI trên Cloud Ru
 
 | Thông tin | Chi tiết |
 |-----------|---------|
+| GCP Project ID | `khanh-fastapi-deploy-937` |
+| Region | `asia-southeast1` |
 | Port mặc định | `8080` |
 | Biến môi trường `PORT` | Cloud Run tự động inject, app hỗ trợ sẵn |
 | Swagger UI | `<host>/docs` |
 | ReDoc | `<host>/redoc` |
 | Bước tiếp theo | Thêm database thật (PostgreSQL, Firestore...) |
+
