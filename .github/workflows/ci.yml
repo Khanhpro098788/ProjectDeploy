@@ -1,0 +1,59 @@
+name: CI Pipeline
+
+# 1. Pipeline Trigger: Khi nào thì chạy?
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+# 2. Jobs: Các nhiệm vụ cần làm
+jobs:
+  # Job 1: Kiểm thử mã nguồn (Test)
+  test-python-code:
+    name: Run Pytest
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip' # Sử dụng cache để cài đặt nhanh hơn ở các lần sau
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          
+      - name: Run Tests
+        run: pytest -v
+
+  # Job 2: Đóng gói Docker (Build)
+  # Chỉ chạy Job 2 nếu Job 1 (test-python-code) đã chạy thành công
+  build-docker-image:
+    name: Build Docker Image
+    needs: test-python-code
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        
+      - name: Build Docker image (Dry Run)
+        # Chỉ build để kiểm tra lỗi cú pháp Dockerfile, không push đi đâu cả
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: fastapi-demo-project:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
