@@ -255,7 +255,7 @@ gcloud run deploy fastapi-demo-project \
     --port 8080
 ```
 
-#### Bước 6 — Lấy URL service
+#### Bước 2 — Lấy URL service
 
 ```bash
 gcloud run services describe fastapi-demo-project \
@@ -264,7 +264,8 @@ gcloud run services describe fastapi-demo-project \
     --format "value(status.url)"
 ```
 
-Sau khi deploy xong, truy cập `<URL>/docs` để xem Swagger UI trên Cloud Run.
+> 🎉 **Thành quả:** Ứng dụng đã online 24/7!  
+> Truy cập Swagger UI tại: **[https://fastapi-demo-project-990324417574.asia-southeast1.run.app/docs](https://fastapi-demo-project-990324417574.asia-southeast1.run.app/docs)**
 
 ---
 
