@@ -320,6 +320,34 @@ gcloud compute ssh khanh-server --zone=asia-southeast1-a
 
 ---
 
+### 📅 Day 6 — GitHub Actions (CI Pipeline)
+
+Hôm nay chúng ta tự động hóa khâu kiểm tra và đóng gói ứng dụng (Continuous Integration). Thay vì gõ lệnh bằng tay, một con Robot (GitHub Runner) sẽ tự làm mỗi khi có code mới.
+
+#### Bước 1 — Tạo cấu trúc thư mục Workflow
+Tạo thư mục `.github/workflows/` trong dự án của bạn.
+
+#### Bước 2 — Viết kịch bản tự động hóa (`ci.yml`)
+Tạo file `.github/workflows/ci.yml` với nội dung sau:
+- **Trigger:** Kích hoạt mỗi khi push lên nhánh `main`.
+- **Job 1 (Test):** Cài đặt Python 3.12, tải thư viện, chạy `pytest`.
+- **Job 2 (Build):** Thử build Docker Image để kiểm tra cú pháp (Dry Run).
+
+*(Xem code chi tiết trong file `.github/workflows/ci.yml` của dự án)*
+
+#### Bước 3 — Đẩy code lên GitHub
+```bash
+git add .
+git commit -m "ci: add GitHub Actions workflow"
+git push
+```
+
+#### Bước 4 — Kiểm tra kết quả
+- Lên trang Github của bạn, chuyển sang tab **Actions**.
+- Xem trực tiếp con Robot đang cài đặt môi trường và báo cáo kết quả (Pass/Fail).
+
+---
+
 ## ⚠️ Lưu ý quan trọng
 
 > **Dữ liệu không được lưu trữ lâu dài!**  
