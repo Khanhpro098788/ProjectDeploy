@@ -350,27 +350,56 @@ git push
 
 ### 📅 Day 7 — Continuous Deployment (CD Pipeline)
 
-Hôm nay là mảnh ghép cuối cùng. Bạn đã cấp quyền cho GitHub Actions có thể tự động thay bạn đẩy code lên Google Cloud.
+Hôm nay là mảnh ghép cuối cùng. Bạn cấp quyền cho GitHub Actions có thể tự động thay bạn đẩy code lên Google Cloud (Cloud Run) mỗi khi bạn chạy lệnh `git push`.
 
-#### Bước 1 — Cấp quyền cho GitHub (Tạo Service Account)
-Bạn đã tạo một tài khoản Robot trên GCP (`github-actions-bot`) và cấp 3 quyền:
-- Quản trị Cloud Run (`roles/run.admin`)
-- Ghi Artifact Registry (`roles/artifactregistry.writer`)
-- Mạo danh Service Account (`roles/iam.serviceAccountUser`)
+#### Bước 1 — Cấp thẻ nhân viên (Service Account) cho GitHub
+*(Tạo một tài khoản Robot và cấp các quyền quản trị Cloud Run, ghi Artifact Registry)*
 
-#### Bước 2 — Lưu trữ khóa bảo mật (GitHub Secrets)
-Bạn đã tải khóa `gcp-key.json` của Robot, lưu vào GitHub Secrets với tên **`GCP_CREDENTIALS`** và xóa file đó khỏi máy tính để bảo mật.
+```bash
+# 1. Tạo tài khoản Robot
+gcloud iam service-accounts create github-actions-bot \
+    --display-name="GitHub Actions Bot"
 
-#### Bước 3 — Cập nhật luồng CI/CD (`ci.yml`)
-Trong file `.github/workflows/ci.yml`, thay vì chỉ Test, bây giờ Pipeline sẽ:
-1. Đăng nhập vào Google Cloud bằng khóa bí mật.
+# 2. Cấp quyền quản lý Cloud Run
+gcloud projects add-iam-policy-binding khanh-fastapi-deploy-937 \
+    --member="serviceAccount:github-actions-bot@khanh-fastapi-deploy-937.iam.gserviceaccount.com" \
+    --role="roles/run.admin"
+
+# 3. Cấp quyền ghi vào Artifact Registry
+gcloud projects add-iam-policy-binding khanh-fastapi-deploy-937 \
+    --member="serviceAccount:github-actions-bot@khanh-fastapi-deploy-937.iam.gserviceaccount.com" \
+    --role="roles/artifactregistry.writer"
+
+# 4. Cấp quyền mạo danh Service Account (bắt buộc cho Cloud Run)
+gcloud projects add-iam-policy-binding khanh-fastapi-deploy-937 \
+    --member="serviceAccount:github-actions-bot@khanh-fastapi-deploy-937.iam.gserviceaccount.com" \
+    --role="roles/iam.serviceAccountUser"
+```
+
+#### Bước 2 — Lấy chìa khóa (Tạo JSON Key)
+*(Tải khóa bí mật của Robot về máy tính)*
+```bash
+gcloud iam service-accounts keys create gcp-key.json \
+    --iam-account=github-actions-bot@khanh-fastapi-deploy-937.iam.gserviceaccount.com
+```
+
+#### Bước 3 — Lưu trữ khóa bảo mật (GitHub Secrets)
+File `gcp-key.json` cực kỳ bảo mật. Ta sẽ cất nó vào két sắt của Github:
+1. Dùng lệnh `type gcp-key.json | clip` để copy nội dung file.
+2. Lên trình duyệt, mở tab **Settings** -> **Secrets and variables** -> **Actions** trong Github của bạn.
+3. Bấm **New repository secret**.
+4. Nhập tên là: **`GCP_CREDENTIALS`** và dán nội dung vào.
+5. Quay lại máy tính, **xóa file JSON** (`del gcp-key.json`) để không bị lộ.
+
+#### Bước 4 — Cập nhật luồng CI/CD (`ci.yml`)
+Trong file `.github/workflows/ci.yml`, ta thêm **Job 2 (Build & Deploy)** để:
+1. Đăng nhập vào Google Cloud bằng khóa bí mật (`google-github-actions/auth@v2`).
 2. Build Docker Image với tag là mã Commit của bạn (`github.sha`).
 3. Push Image đó lên Artifact Registry.
 4. Chạy lệnh `gcloud run deploy` để tự động tung bản cập nhật mới nhất lên mạng!
 
 > 🎉 **Thành quả Tối thượng:** 
-> Từ bây giờ, bạn chỉ cần gõ code trên máy tính, chạy `git push`, ra pha một tách cà phê và quay lại — Website của bạn đã được cập nhật phiên bản mới nhất trên toàn cầu!
-
+> Từ bây giờ, bạn chỉ cần sửa code trên máy tính, chạy `git push`, Github Actions sẽ tự động Deploy. Website của bạn sẽ được tự động cập nhật phiên bản mới nhất!
 ---
 
 ## ⚠️ Lưu ý quan trọng
