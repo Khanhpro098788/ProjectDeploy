@@ -465,6 +465,43 @@ Khái niệm cốt lõi của SST là **Stages**. Nó cho phép ta nhân bản (
 
 ---
 
+### 📅 Day 9 — SST + Cloud Run Infrastructure
+
+Hôm nay chúng ta sẽ bắt tay vào viết "Bản vẽ hạ tầng" thực sự. Mục tiêu là dùng code TypeScript để tự động hóa hoàn toàn lệnh `gcloud run deploy` mà bạn từng gõ mỏi tay ở Ngày 4.
+
+#### Bước 1 — Cài đặt thư viện Google Cloud
+Vì SST hỗ trợ nhiều nền tảng (AWS, Cloudflare, Google Cloud...), ta cần tải bộ thư viện giao tiếp riêng cho Google Cloud (`@pulumi/gcp`).
+
+```bash
+npm install @pulumi/gcp @pulumi/pulumi
+```
+
+#### Bước 2 — Khai báo Cloud Run trong bản vẽ
+Mở file `sst.config.ts` và nhập import ở dòng đầu tiên:
+```typescript
+import * as gcp from "@pulumi/gcp";
+```
+
+Bên trong hàm `run()`, ta viết các chỉ thị:
+1. **Khai báo Service:** `new gcp.cloudrun.Service(...)`
+2. **Quyền truy cập:** `new gcp.cloudrun.IamMember(...)` để mở quyền `allUsers`.
+3. **Kết quả trả về:** Trả về URL của website để SST in ra màn hình.
+
+*(Xem toàn bộ code đầy đủ trong file `sst.config.ts` của dự án).*
+
+#### Bước 3 — Triển khai (Deploy)
+Khi file thiết kế đã hoàn tất, bạn chỉ cần gõ 1 lệnh duy nhất để tạo ra 1 môi trường hoàn chỉnh:
+
+```bash
+npx sst deploy --stage dev
+```
+*(SST sẽ phân tích bản vẽ, gọi lên API của Google Cloud, tự động tạo cấu hình, khởi động Cloud Run và in ra một đường link URL cho bạn ngay trên màn hình đen!)*
+
+> 💡 **Khả năng Tái tạo (Reproducible):** 
+> Nếu bạn muốn tạo thêm một môi trường `staging`, bạn chỉ việc gõ `npx sst deploy --stage staging`. SST sẽ tự động tạo ra một Cloud Run thứ 2 hoàn toàn độc lập mà không ảnh hưởng tới cái cũ. Sức mạnh của IaC là đây!
+
+---
+
 ## ⚠️ Lưu ý quan trọng
 
 > **Dữ liệu không được lưu trữ lâu dài!**  

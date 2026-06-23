@@ -9,5 +9,9 @@
   },
   "devDependencies": {
     "sst": "latest"
+  },
+  "dependencies": {
+    "@pulumi/gcp": "^9.28.0",
+    "@pulumi/pulumi": "^3.247.0"
   }
 }
