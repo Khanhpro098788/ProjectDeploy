@@ -1,29 +1,45 @@
-# Python
+# ── Git ───────────────────────────────────────────────────────────
+.git/
+.gitignore
+
+# ── Python cache ──────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *.pyo
 *.pyd
 .Python
 
-# Virtual environment
+# ── Virtual environment ───────────────────────────────────────────
 .venv/
 venv/
 env/
 
-# pytest
-.pytest_cache/
+# ── Tests (không cần trong image production) ─────────────────────
+tests/
+conftest.py
+pytest_cache/
 .coverage
 htmlcov/
 
-# IDE
+# ── IDE & Editor ──────────────────────────────────────────────────
 .idea/
 .vscode/
 *.swp
+*.swo
 
-# Env files
+# ── Secrets & Config nhạy cảm ────────────────────────────────────
 .env
 .env.*
+*.key
+*.pem
 
-# OS
+# ── OS ────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
+
+# ── Docs (không cần trong image) ─────────────────────────────────
+README.md
+*.md
+
+# ── pyproject config ──────────────────────────────────────────────
+pyproject.toml
