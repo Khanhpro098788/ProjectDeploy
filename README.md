@@ -400,6 +400,25 @@ Trong file `.github/workflows/ci.yml`, ta thêm **Job 2 (Build & Deploy)** để
 
 > 🎉 **Thành quả Tối thượng:** 
 > Từ bây giờ, bạn chỉ cần sửa code trên máy tính, chạy `git push`, Github Actions sẽ tự động Deploy. Website của bạn sẽ được tự động cập nhật phiên bản mới nhất!
+
+---
+
+### 📅 Day 8 — SST & Infrastructure as Code (IaC)
+
+Bắt đầu từ Tuần 2, chúng ta chuyển sang tư duy **Cơ sở hạ tầng dưới dạng Mã (IaC)**. Thay vì click tay tạo máy chủ hay gõ lệnh `gcloud`, ta dùng framework **SST (sst.dev)** để viết code thiết kế hạ tầng.
+
+#### Bước 1 — Cấu trúc dự án SST
+- **`package.json`**: Quản lý phiên bản của SST.
+- **`sst.config.ts`**: Bản thiết kế toàn bộ hạ tầng (Cloud Run, VPC, Database...) bằng ngôn ngữ TypeScript.
+
+#### Bước 2 — Chiến lược Môi trường (Stages)
+Khái niệm cốt lõi của SST là **Stages**. Nó cho phép ta nhân bản (clone) toàn bộ hạ tầng thành nhiều phiên bản độc lập để kiểm thử an toàn. Dự án này quy định 3 môi trường:
+1. `dev`: Dành cho lập trình viên thử nghiệm trên máy cá nhân (`npx sst deploy --stage dev`). Dễ dàng xóa bỏ.
+2. `staging`: Bản nháp y hệt bản thật dùng để Test.
+3. `production`: Sản phẩm thật cho người dùng (`npx sst deploy --stage production`). Chế độ bảo vệ nghiêm ngặt, không tự động xóa tài nguyên.
+
+*(Xem file `sst.config.ts` để hiểu cách khai báo logic của 3 môi trường này).*
+
 ---
 
 ## ⚠️ Lưu ý quan trọng
