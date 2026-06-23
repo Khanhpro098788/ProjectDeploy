@@ -209,40 +209,46 @@ gcloud services enable run.googleapis.com artifactregistry.googleapis.com iam.go
 
 ---
 
-### 📅 Day 3+ — Build & Deploy *(làm mỗi lần muốn deploy)*
+### 📅 Day 3 — Artifact Registry *(Xây nhà kho đám mây)*
 
-#### Bước 1 — Tạo Artifact Registry repository *(chỉ làm 1 lần)*
+#### Bước 1 — Tạo nhà kho chứa Code *(chỉ làm 1 lần)*
 
 ```bash
-gcloud artifacts repositories create fastapi-repo \
+gcloud artifacts repositories create fastapi-demo \
     --repository-format=docker \
     --location=asia-southeast1 \
-    --description="Kho chua Docker Image cua FastAPI Demo"
+    --description="Kho chua Docker Image cua Khanh FastAPI"
 ```
 
-#### Bước 2 — Cấu hình Docker authentication
+#### Bước 2 — Cấp thẻ ra vào cho Docker
 
 ```bash
 gcloud auth configure-docker asia-southeast1-docker.pkg.dev
 ```
 
-#### Bước 3 — Build image
+#### Bước 3 — Viết địa chỉ giao hàng (Tag Image)
 
 ```bash
-docker build -t asia-southeast1-docker.pkg.dev/khanh-fastapi-deploy-937/fastapi-repo/fastapi-demo-project:latest .
+docker tag fastapi-demo-project:v1.0.0 asia-southeast1-docker.pkg.dev/khanh-fastapi-deploy-937/fastapi-demo/fastapi-demo-project:v1.0.0
 ```
 
-#### Bước 4 — Push image lên Artifact Registry
+#### Bước 4 — Phóng tàu không gian (Push Image)
 
 ```bash
-docker push asia-southeast1-docker.pkg.dev/khanh-fastapi-deploy-937/fastapi-repo/fastapi-demo-project:latest
+docker push asia-southeast1-docker.pkg.dev/khanh-fastapi-deploy-937/fastapi-demo/fastapi-demo-project:v1.0.0
 ```
 
-#### Bước 5 — Deploy lên Cloud Run
+> ✅ **Kết quả Day 3:** Chiếc hộp của bạn đã rời khỏi máy tính cá nhân và được lưu trữ vĩnh viễn, an toàn trên Google Artifact Registry.
+
+---
+
+### 📅 Day 4 — Deploying to Cloud Run *(Ra mắt công chúng)*
+
+#### Bước 1 — Triển khai Ứng dụng
 
 ```bash
 gcloud run deploy fastapi-demo-project \
-    --image asia-southeast1-docker.pkg.dev/khanh-fastapi-deploy-937/fastapi-repo/fastapi-demo-project:latest \
+    --image asia-southeast1-docker.pkg.dev/khanh-fastapi-deploy-937/fastapi-demo/fastapi-demo-project:v1.0.0 \
     --platform managed \
     --region asia-southeast1 \
     --allow-unauthenticated \
