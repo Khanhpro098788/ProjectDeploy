@@ -1,0 +1,8 @@
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.pyrefly]
+# Khai báo import root là thư mục gốc của project
+# để Pyrefly hiểu `from src.main import app` là đúng
+source_paths = ["."]
