@@ -476,18 +476,39 @@ Vì SST hỗ trợ nhiều nền tảng (AWS, Cloudflare, Google Cloud...), ta c
 npm install @pulumi/gcp @pulumi/pulumi
 ```
 
-#### Bước 2 — Khai báo Cloud Run trong bản vẽ
-Mở file `sst.config.ts` và nhập import ở dòng đầu tiên:
+#### Bước 2 — Khai báo Cloud Run trong Bản vẽ thiết kế
+Thay vì mở màn hình đen gõ lệnh `gcloud`, ta sẽ viết đoạn code sau vào file `sst.config.ts` (bên trong hàm `run`):
+
 ```typescript
-import * as gcp from "@pulumi/gcp";
+// 1. Chỉ định Image Docker
+const imageUrl = "asia-southeast1-docker.pkg.dev/khanh-fastapi-deploy-937/fastapi-demo/fastapi-demo-project:latest";
+
+// 2. Khai báo dịch vụ Cloud Run
+const service = new gcp.cloudrun.Service(`fastapi-service-${$app.stage}`, {
+  location: "asia-southeast1",
+  template: {
+    spec: {
+      containers: [{
+        image: imageUrl,
+        ports: [{ containerPort: 8080 }],
+      }],
+    },
+  },
+});
+
+// 3. Mở quyền truy cập công khai (Allow unauthenticated)
+new gcp.cloudrun.IamMember(`public-access-${$app.stage}`, {
+  service: service.name,
+  location: service.location,
+  role: "roles/run.invoker",
+  member: "allUsers",
+});
+
+// 4. In ra đường link trang web sau khi hoàn thành
+return {
+  WebsiteURL: service.statuses[0].url,
+};
 ```
-
-Bên trong hàm `run()`, ta viết các chỉ thị:
-1. **Khai báo Service:** `new gcp.cloudrun.Service(...)`
-2. **Quyền truy cập:** `new gcp.cloudrun.IamMember(...)` để mở quyền `allUsers`.
-3. **Kết quả trả về:** Trả về URL của website để SST in ra màn hình.
-
-*(Xem toàn bộ code đầy đủ trong file `sst.config.ts` của dự án).*
 
 #### Bước 3 — Triển khai (Deploy)
 Khi file thiết kế đã hoàn tất, bạn chỉ cần gõ 1 lệnh duy nhất để tạo ra 1 môi trường hoàn chỉnh:
