@@ -348,6 +348,31 @@ git push
 
 ---
 
+### 📅 Day 7 — Continuous Deployment (CD Pipeline)
+
+Hôm nay là mảnh ghép cuối cùng. Bạn đã cấp quyền cho GitHub Actions có thể tự động thay bạn đẩy code lên Google Cloud.
+
+#### Bước 1 — Cấp quyền cho GitHub (Tạo Service Account)
+Bạn đã tạo một tài khoản Robot trên GCP (`github-actions-bot`) và cấp 3 quyền:
+- Quản trị Cloud Run (`roles/run.admin`)
+- Ghi Artifact Registry (`roles/artifactregistry.writer`)
+- Mạo danh Service Account (`roles/iam.serviceAccountUser`)
+
+#### Bước 2 — Lưu trữ khóa bảo mật (GitHub Secrets)
+Bạn đã tải khóa `gcp-key.json` của Robot, lưu vào GitHub Secrets với tên **`GCP_CREDENTIALS`** và xóa file đó khỏi máy tính để bảo mật.
+
+#### Bước 3 — Cập nhật luồng CI/CD (`ci.yml`)
+Trong file `.github/workflows/ci.yml`, thay vì chỉ Test, bây giờ Pipeline sẽ:
+1. Đăng nhập vào Google Cloud bằng khóa bí mật.
+2. Build Docker Image với tag là mã Commit của bạn (`github.sha`).
+3. Push Image đó lên Artifact Registry.
+4. Chạy lệnh `gcloud run deploy` để tự động tung bản cập nhật mới nhất lên mạng!
+
+> 🎉 **Thành quả Tối thượng:** 
+> Từ bây giờ, bạn chỉ cần gõ code trên máy tính, chạy `git push`, ra pha một tách cà phê và quay lại — Website của bạn đã được cập nhật phiên bản mới nhất trên toàn cầu!
+
+---
+
 ## ⚠️ Lưu ý quan trọng
 
 > **Dữ liệu không được lưu trữ lâu dài!**  
