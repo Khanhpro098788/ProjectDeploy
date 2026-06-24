@@ -1680,4 +1680,19 @@ Tài liệu hóa mọi chìa khóa để sẵn sàng kiểm toán (Audit-ready).
 | **github-ci-sa** | Service Account | `Artifact Registry Writer`<br>`Cloud Run Developer`<br>`Service Account User` | Dành cho GitHub Actions để Push Docker Image và cập nhật Cloud Run tự động. |
 | **cloudrun-runtime-sa** | Service Account | `Logs Writer` | Gắn trực tiếp vào ứng dụng Cloud Run khi đang phục vụ khách hàng để ghi Log. |
 
+---
+
+### 📝 Tổng hợp kết quả Day 11
+
+**Những gì đã thực hiện:**
+1. Thấu hiểu và áp dụng nguyên tắc **Least Privilege (Đặc quyền tối thiểu)** trong thực tế.
+2. Thiết lập thành công **2 Service Account riêng biệt**: Một cái dùng để giao hàng (CI), một cái dùng để ứng dụng chạy (Runtime).
+3. Hủy bỏ cách đăng nhập nguy hiểm bằng file JSON tĩnh, chuyển sang sử dụng công nghệ cấp thẻ tạm thời **Workload Identity Federation (WIF)** kết nối thẳng với GitHub Actions OIDC.
+4. Điều chỉnh mã nguồn hạ tầng (`sst.config.ts`) để gán cứng tài khoản an toàn cho Cloud Run.
+5. Củng cố kỹ năng tìm lỗi 403 bằng **Cloud Audit Logs**.
+6. Soạn thảo **Ma trận phân quyền (IAM Access Matrix)** phục vụ quản lý và kiểm toán bảo mật.
+
+**Kết quả đạt được (Output):**
+**Hệ thống CI/CD và Cloud Run của bạn hiện đã đạt tiêu chuẩn Bảo mật Cấp cao (Enterprise-grade Security)**. Tài khoản có quyền thay đổi hạ tầng đã bị khóa chặt sau lớp bảo vệ WIF (không ai có thể đánh cắp chìa khóa vì nó không tồn tại ở dạng file). Đồng thời, ứng dụng đang phục vụ người dùng chỉ mang một danh tính "thấp bé" nhất định, đảm bảo dù ứng dụng có bị hack, hacker cũng không thể chiếm quyền điều khiển tài khoản Google Cloud của bạn.
+
 
