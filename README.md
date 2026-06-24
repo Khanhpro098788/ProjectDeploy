@@ -192,26 +192,318 @@ flowchart LR
 
 ### WEEK 1: Docker & GCP Foundations
 
-**Bước 1: Khởi tạo Project và Cấp quyền IAM**
-**Mục đích:** Khởi tạo vùng không gian trên Google Cloud và cấp quyền cho GitHub Actions Bot.
+---
+
+#### 📅 DAY 1 — GCP Setup & IAM Basics
+
+> **Mục tiêu:** Có một GCP project sẵn sàng triển khai với Service Account đủ quyền cho CI/CD.
+> **Thực hiện:** 1 lần duy nhất khi bắt đầu dự án.
+
+---
+
+### Bước 1: Đăng nhập Google Cloud
+
+**Mục đích:** Xác thực danh tính cá nhân với Google Cloud CLI trên máy local. Tất cả lệnh `gcloud` tiếp theo đều cần bước này.
+
 **Điều kiện trước khi thực hiện:**
-- Cài đặt Google Cloud CLI.
-- Đã đăng nhập `gcloud auth login`.
-**Thực hiện tại:** Terminal nội bộ.
+- Đã cài đặt [Google Cloud CLI](https://cloud.google.com/sdk/docs/install).
+- Trình duyệt web khả dụng để hoàn thành OAuth.
+
+**Thực hiện tại:** PowerShell hoặc Terminal tại bất kỳ thư mục nào.
+
 **Câu lệnh:**
 ```bash
-gcloud projects create <PROJECT_ID> --name="Khanh FastAPI Deploy"
-gcloud config set project <PROJECT_ID>
-gcloud services enable run.googleapis.com artifactregistry.googleapis.com iam.googleapis.com
-gcloud iam service-accounts create github-actions-bot
+gcloud auth login
 ```
-**Giải thích:** Tạo project, bật các API cần thiết để chạy dịch vụ và tạo tài khoản robot. Thay `<PROJECT_ID>` bằng mã định danh (vd: `khanh-fastapi-deploy-937`).
-**Kết quả mong đợi:** Project được kích hoạt, Service account được tạo.
-**Cách xác nhận:** `gcloud projects list`
-**Khả năng chạy lại:** Không lũy đẳng (Tạo project trùng tên sẽ lỗi).
+
+**Giải thích:**
+- Lệnh mở trình duyệt để đăng nhập tài khoản Google.
+- Sau khi xác nhận, token được lưu vào máy local để dùng cho các lệnh tiếp theo.
+
+**Kết quả mong đợi:**
+```text
+You are now logged in as [your-email@gmail.com].
+```
+
+**Cách xác nhận:**
+```bash
+gcloud auth list
+```
+Tài khoản email của bạn xuất hiện với dấu `*` là đang được chọn.
+
+**Khả năng chạy lại:** Có thể chạy lại an toàn. Nếu đã đăng nhập, lệnh sẽ cho phép chuyển tài khoản.
+
+---
+
+### Bước 2: Tạo GCP Project mới
+
+**Mục đích:** Tạo không gian làm việc riêng biệt trên Google Cloud. Mọi tài nguyên (Cloud Run, Artifact Registry, VM) đều gắn với Project ID này.
+
+**Điều kiện trước khi thực hiện:**
+- Đã đăng nhập theo Bước 1.
+- Tài khoản Google có quyền tạo project (cần billing account liên kết).
+
+**Thực hiện tại:** Terminal.
+
+**Câu lệnh:**
+```bash
+gcloud projects create khanh-fastapi-deploy-937 --name="Khanh FastAPI Deploy"
+```
+
+**Giải thích:**
+- `khanh-fastapi-deploy-937` — **Project ID** duy nhất toàn cầu, không thể trùng với bất kỳ ai. Đây là giá trị thực tế đã dùng trong dự án.
+- `--name` — Tên hiển thị thân thiện, có thể thay đổi sau. Không phải Project ID.
+
+**Kết quả mong đợi:**
+```text
+Create in progress for [https://cloudresourcemanager.googleapis.com/v1/projects/khanh-fastapi-deploy-937].
+...done.
+```
+
+**Cách xác nhận:**
+```bash
+gcloud projects describe khanh-fastapi-deploy-937
+```
+
+**Khả năng chạy lại:** ❌ **Không lũy đẳng** — Chạy lại sẽ báo lỗi `Project ID already exists`. Kiểm tra trước:
+```bash
+gcloud projects list
+```
+
 **Lỗi có thể xảy ra:**
-- Biểu hiện: Lỗi Permission Denied hoặc Project ID already exists.
-- Nguyên nhân: Chưa có quyền thanh toán hoặc tên trùng.
+- **Biểu hiện:** `ERROR: (gcloud.projects.create) Project ID already exists`
+- **Nguyên nhân:** Project ID này đã được dùng trên toàn hệ thống Google Cloud.
+- **Cách khắc phục:** Đặt Project ID khác, thêm số ngẫu nhiên ở cuối (vd: `my-project-38291`).
+
+---
+
+### Bước 3: Đặt Project làm mặc định
+
+**Mục đích:** Tránh phải thêm `--project` vào mọi lệnh `gcloud`. Mọi lệnh tiếp theo sẽ tự động áp dụng cho project này.
+
+**Thực hiện tại:** Terminal.
+
+**Câu lệnh:**
+```bash
+gcloud config set project khanh-fastapi-deploy-937
+```
+
+**Giải thích:**
+- Lưu Project ID vào cấu hình local của `gcloud`.
+- Giá trị `khanh-fastapi-deploy-937` là Project ID thực tế đã tạo ở Bước 2.
+
+**Kết quả mong đợi:**
+```text
+Updated property [core/project].
+```
+
+**Cách xác nhận:**
+```bash
+gcloud config get-value project
+```
+Output phải là: `khanh-fastapi-deploy-937`
+
+**Khả năng chạy lại:** ✅ Lũy đẳng — Chạy lại chỉ ghi đè giá trị cũ, không gây hại.
+
+---
+
+### Bước 4: Bật các API cần thiết
+
+**Mục đích:** GCP mặc định tắt tất cả API để tiết kiệm tài nguyên. Cần bật đúng 3 API trước khi sử dụng dịch vụ.
+
+**Điều kiện trước khi thực hiện:**
+- Project đã được chọn làm mặc định (Bước 3).
+- Tài khoản đã liên kết Billing (Cloud Run và Artifact Registry yêu cầu billing).
+
+**Thực hiện tại:** Terminal.
+
+**Câu lệnh:**
+```bash
+gcloud services enable run.googleapis.com artifactregistry.googleapis.com iam.googleapis.com
+```
+
+**Giải thích:**
+
+| API | Dùng để làm gì |
+|-----|----------------|
+| `run.googleapis.com` | Triển khai ứng dụng lên Cloud Run |
+| `artifactregistry.googleapis.com` | Lưu trữ Docker image |
+| `iam.googleapis.com` | Tạo và quản lý Service Account |
+
+**Kết quả mong đợi:**
+```text
+Operation "operations/..." finished successfully.
+```
+
+**Cách xác nhận:**
+```bash
+gcloud services list --enabled --filter="name:(run OR artifactregistry OR iam)"
+```
+
+**Khả năng chạy lại:** ✅ Lũy đẳng — API đã bật thì lệnh bỏ qua, không báo lỗi.
+
+**Lỗi có thể xảy ra:**
+- **Biểu hiện:** `FAILED_PRECONDITION: Billing must be enabled`
+- **Nguyên nhân:** Project chưa được liên kết với tài khoản thanh toán.
+- **Cách khắc phục:** Vào [Google Cloud Console → Billing](https://console.cloud.google.com/billing) và liên kết billing account với project.
+
+---
+
+### Bước 5: Tạo Service Account cho CI/CD
+
+**Mục đích:** Tạo một tài khoản robot chuyên dụng cho GitHub Actions. Tài khoản này thay mặt pipeline để push image và deploy — không dùng tài khoản cá nhân.
+
+**Thực hiện tại:** Terminal.
+
+**Câu lệnh:**
+```bash
+gcloud iam service-accounts create github-actions-bot \
+  --display-name="GitHub Actions Bot"
+```
+
+**Giải thích:**
+- `github-actions-bot` — Tên định danh của Service Account.
+- `--display-name` — Tên hiển thị trên Console.
+- Email đầy đủ tự động tạo ra: `github-actions-bot@khanh-fastapi-deploy-937.iam.gserviceaccount.com`
+
+**Kết quả mong đợi:**
+```text
+Created service account [github-actions-bot].
+```
+
+**Cách xác nhận:**
+```bash
+gcloud iam service-accounts list
+```
+
+**Khả năng chạy lại:** ❌ **Không lũy đẳng** — Chạy lại sẽ báo lỗi tên đã tồn tại. Kiểm tra trước:
+```bash
+gcloud iam service-accounts list
+```
+
+---
+
+### Bước 6: Cấp quyền cho Service Account
+
+**Mục đích:** Áp dụng nguyên tắc **Least Privilege** — chỉ cấp đúng 3 quyền cần thiết cho CI/CD pipeline, không cấp thừa.
+
+**Thực hiện tại:** Terminal.
+
+**Câu lệnh:**
+```bash
+gcloud projects add-iam-policy-binding khanh-fastapi-deploy-937 \
+  --member="serviceAccount:github-actions-bot@khanh-fastapi-deploy-937.iam.gserviceaccount.com" \
+  --role="roles/artifactregistry.writer"
+
+gcloud projects add-iam-policy-binding khanh-fastapi-deploy-937 \
+  --member="serviceAccount:github-actions-bot@khanh-fastapi-deploy-937.iam.gserviceaccount.com" \
+  --role="roles/run.admin"
+
+gcloud projects add-iam-policy-binding khanh-fastapi-deploy-937 \
+  --member="serviceAccount:github-actions-bot@khanh-fastapi-deploy-937.iam.gserviceaccount.com" \
+  --role="roles/iam.serviceAccountUser"
+```
+
+**Giải thích:**
+
+| Quyền | Cho phép làm gì |
+|-------|-----------------|
+| `roles/artifactregistry.writer` | Push Docker image lên Artifact Registry |
+| `roles/run.admin` | Tạo và cập nhật dịch vụ Cloud Run |
+| `roles/iam.serviceAccountUser` | Cho phép Cloud Run chạy với đúng danh tính |
+
+**Kết quả mong đợi:**
+```text
+Updated IAM policy for project [khanh-fastapi-deploy-937].
+```
+
+**Cách xác nhận:**
+```bash
+gcloud projects get-iam-policy khanh-fastapi-deploy-937 \
+  --flatten="bindings[].members" \
+  --filter="bindings.members:github-actions-bot"
+```
+
+**Khả năng chạy lại:** ✅ Lũy đẳng — Cấp quyền đã có thì giữ nguyên, không tạo trùng.
+
+---
+
+### Bước 7: Tạo JSON Key và đưa vào GitHub Secrets
+
+**Mục đích:** Tải về file chìa khóa bí mật cho Service Account. GitHub Actions dùng file này để xác thực với GCP thay cho người dùng.
+
+**Thực hiện tại:** Terminal, tại thư mục dự án.
+
+**Câu lệnh:**
+```bash
+gcloud iam service-accounts keys create gcp-key.json \
+  --iam-account=github-actions-bot@khanh-fastapi-deploy-937.iam.gserviceaccount.com
+```
+
+**Giải thích:**
+- `gcp-key.json` — Tên file JSON sẽ được tải xuống.
+- File này chứa private key của Service Account — **cực kỳ nhạy cảm**.
+
+**Kết quả mong đợi:**
+```text
+created key [...] of type [json] as [gcp-key.json] for [github-actions-bot@...]
+```
+
+**Cách xác nhận:**
+```bash
+dir gcp-key.json
+```
+
+**Khả năng chạy lại:** ❌ **Không lũy đẳng** — Mỗi lần tạo thêm 1 key mới. Một Service Account tối đa 10 keys. Xem danh sách key trước:
+```bash
+gcloud iam service-accounts keys list \
+  --iam-account=github-actions-bot@khanh-fastapi-deploy-937.iam.gserviceaccount.com
+```
+
+> [!WARNING]
+> File `gcp-key.json` là bí mật tuyệt đối. **Không được commit lên GitHub.** Đảm bảo tên file đã có trong `.gitignore`.
+
+**Sau khi tạo key — Đưa vào GitHub Secrets:**
+1. Mở file `gcp-key.json`, copy toàn bộ nội dung JSON.
+2. Vào GitHub Repository → **Settings** → **Secrets and variables** → **Actions**.
+3. Bấm **New repository secret**, đặt tên `GCP_CREDENTIALS`.
+4. Dán nội dung JSON vào ô Secret → Bấm **Add secret**.
+
+---
+
+### ✅ Checklist xác nhận hoàn thành Day 1
+
+```text
+- [ ] gcloud auth list → hiển thị email tài khoản với dấu *
+- [ ] gcloud config get-value project → in ra "khanh-fastapi-deploy-937"
+- [ ] gcloud services list --enabled → có run, artifactregistry, iam
+- [ ] gcloud iam service-accounts list → có "github-actions-bot"
+- [ ] gcloud projects get-iam-policy → Service Account có đủ 3 roles
+- [ ] GitHub Secrets → có GCP_CREDENTIALS
+- [ ] .gitignore → có dòng gcp-key.json
+```
+
+---
+
+### 🔴 Troubleshooting Day 1
+
+**Lỗi: `PERMISSION_DENIED` khi tạo project**
+- **Biểu hiện:** `The caller does not have permission`
+- **Nguyên nhân:** Tài khoản Google chưa được liên kết với Billing hoặc chưa có quyền tạo project trong Organization.
+- **Cách kiểm tra:** Vào [console.cloud.google.com](https://console.cloud.google.com) kiểm tra quyền trực tiếp.
+- **Cách khắc phục:** Liên kết Billing Account hoặc yêu cầu admin cấp quyền `roles/resourcemanager.projectCreator`.
+
+**Lỗi: `API not enabled` khi dùng Cloud Run**
+- **Biểu hiện:** `API [run.googleapis.com] not enabled on project`
+- **Nguyên nhân:** Bỏ qua Bước 4 hoặc lệnh enable chưa hoàn thành.
+- **Cách khắc phục:** Chạy lại Bước 4.
+- **Cách xác nhận:** `gcloud services list --enabled | Select-String "run"`
+
+**Lỗi: GitHub Actions báo `Could not load the default credentials`**
+- **Biểu hiện:** Job `auth` trong GitHub Actions thất bại.
+- **Nguyên nhân:** Secret `GCP_CREDENTIALS` chưa được tạo hoặc nội dung JSON bị cắt bớt khi paste.
+- **Cách khắc phục:** Xóa secret cũ trên GitHub, tạo lại và paste lại toàn bộ nội dung file `gcp-key.json`.
+- **Cách xác nhận:** Xem log bước `Google Auth` trong tab Actions.
 
 **Bước 2: Đóng gói Docker Image cục bộ**
 **Mục đích:** Xây dựng Image từ mã nguồn để chạy thử nghiệm trên máy.
