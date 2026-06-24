@@ -1424,3 +1424,94 @@ SST quản lý trạng thái (state) riêng biệt cho từng stage. Điều nà
 **Kết quả đạt được (Output):**
 **Dự án SST đã được cấu trúc và khởi tạo hoàn chỉnh**. Toàn bộ cấu hình Cloud Run giờ đây nằm trên một file TypeScript. Với kiến trúc này, bạn chỉ cần 1 giây để nhân bản ra 100 môi trường ảo khác nhau cho 100 nhân sự làm việc song song mà không sợ đụng độ. Đây là đẳng cấp của Kỹ sư Đám mây thực thụ.
 
+---
+
+#### 📅 DAY 9 — sst.dev + Cloud Run Infrastructure
+
+> **Mục tiêu:** Áp dụng mã nguồn SST đã viết để thực sự triển khai (Deploy) hạ tầng lên Google Cloud mà không cần click chuột trên giao diện (Console Click-ops).
+> **Thực hiện:** Khi bạn muốn đưa code hạ tầng từ file `sst.config.ts` ra ngoài đời thực.
+
+---
+
+### Bước 1: Khái niệm Mapping SST Constructs to GCP Services
+
+**Mục đích:** Hiểu cách SST biên dịch TypeScript thành các dịch vụ của Google Cloud.
+- Trong SST, mỗi đoạn code (gọi là Construct) sẽ tương ứng 1-1 với một dịch vụ thực tế.
+- Ví dụ: `new gcp.cloudrun.Service(...)` sẽ tạo ra dịch vụ Cloud Run.
+- Ví dụ: `new gcp.cloudrun.IamMember(...)` sẽ tạo ra một Policy (Quyền) trên IAM của GCP.
+SST sử dụng lõi của Pulumi để giao tiếp thẳng với API của Google, tự động tính toán những thay đổi cần thiết (Diff) mà không cần bạn phải ra lệnh xóa cái cũ tạo cái mới.
+
+---
+
+### Bước 2: Deploy Infrastructure via SST (Triển khai Hạ tầng)
+
+**Mục đích:** Kích hoạt quá trình tạo tài nguyên trên GCP dựa theo code bạn đã định nghĩa.
+
+**Thực hiện tại:** Terminal nội bộ.
+
+**Câu lệnh:**
+```bash
+npx sst deploy --stage dev
+```
+
+**Quá trình hoạt động (SST Pipeline):**
+1. **Phân tích:** SST đọc file `sst.config.ts`.
+2. **Lên kế hoạch (Preview):** Tính toán xem dịch vụ Cloud Run tên `fastapi-service-dev` đã tồn tại chưa. Nếu chưa -> Báo tạo mới. Nếu có rồi -> Báo cập nhật.
+3. **Thực thi:** Gửi yêu cầu qua GCP API để khởi tạo. Trạng thái (State) được lưu trữ an toàn để dùng cho các lần cập nhật sau.
+
+**Kết quả mong đợi:**
+```text
+Deploying fastapi-demo (dev)
+...
+✓  fastapi-service-dev    Deployed
+WebsiteURL: https://fastapi-service-dev-xxx-as.a.run.app
+```
+**Khả năng chạy lại:** ✅ Lũy đẳng tuyệt đối. Nếu code không đổi, chạy 10 lần SST cũng sẽ báo `No changes` (Không có thay đổi).
+
+---
+
+### Bước 3: Document Architecture & SST Outputs (Tài liệu hóa)
+
+**Mục đích:** Trích xuất kết quả sau khi triển khai để hệ thống khác (hoặc lập trình viên Front-end) có thể tự động lấy URL và sử dụng.
+
+**Nội dung cốt lõi:**
+Đoạn code trong file cấu hình:
+```typescript
+    return {
+      WebsiteURL: service.statuses[0].url,
+    };
+```
+SST sẽ In ra (Export) các biến quan trọng sau khi Deploy xong. Giả sử sau này bạn có thêm Database, bạn sẽ trả về thêm `DatabaseConnectionURL` để bảo mật.
+
+---
+
+### 🔴 Troubleshooting Day 9 (Lỗi hạ tầng)
+
+**Lỗi: Triển khai SST thất bại (Deploy Failed / Rollback)**
+- **Biểu hiện:** SST đang chạy nhưng báo lỗi đỏ và tự động Undo (quay lui hạ tầng).
+- **Nguyên nhân:**
+  - Tài khoản GCP của bạn (hoặc Service Account) chưa đủ quyền tạo tài nguyên tương ứng (Vd: thiếu quyền `roles/run.admin`).
+  - Image Docker điền trong file cấu hình không tồn tại hoặc sai URL.
+- **Cách khắc phục:** 
+  1. Đọc kỹ dòng log màu đỏ của SST.
+  2. Bổ sung quyền (IAM) hoặc sửa lại biến `imageUrl` cho chính xác.
+  3. Chạy lại lệnh `deploy` (SST sẽ tự biết khôi phục lại phần bị đứt gãy).
+
+**Lỗi: Khác biệt State (State mismatch)**
+- **Biểu hiện:** SST báo lỗi không đồng bộ trạng thái.
+- **Nguyên nhân:** Đang dùng SST nhưng ai đó lại lên giao diện GCP Console tự ý bấm nút xóa hoặc sửa Cloud Run bằng tay (Click-ops).
+- **Cách khắc phục:** Quy tắc tối thượng của IaC là: **Đã dùng code thì CẤM đụng vào giao diện (No Click-ops)**. Mọi thay đổi đều phải sửa trong code và deploy lại.
+
+---
+
+### 📝 Tổng hợp kết quả Day 9
+
+**Những gì đã thực hiện:**
+1. Ánh xạ thành công mã nguồn (Constructs) vào các hệ thống thực trên GCP.
+2. Khởi chạy thành công ứng dụng bằng dòng lệnh duy nhất `npx sst deploy`.
+3. Nhận về Endpoint URL (Output) thông qua biến động.
+4. Hiểu được rủi ro tối kỵ của IaC là can thiệp thủ công (Click-ops) lên giao diện.
+
+**Kết quả đạt được (Output):**
+**Hệ thống máy chủ đã được vận hành 100% bằng code (Reproducible Infrastructure)**. Không còn khái niệm "tài liệu bị lỗi thời" hay "bạn mới vào công ty không biết bấm nút nào trên Google Cloud". Nếu server bị lỗi, bạn chỉ mất đúng 1 phút gõ `npx sst deploy` để GCP tạo lại toàn bộ hệ thống y như cũ.
+
