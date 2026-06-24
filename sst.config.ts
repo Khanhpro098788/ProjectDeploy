@@ -1,7 +1,5 @@
 /// <reference path="./.sst/platform/config.d.ts" />
 
-import * as gcp from "@pulumi/gcp";
-
 export default $config({
   app(input) {
     return {
@@ -11,6 +9,7 @@ export default $config({
     };
   },
   async run() {
+    const gcp = await import("@pulumi/gcp");
     console.log(`Đang triển khai môi trường (stage): ${$app.stage}`);
 
     // 1. Chỉ định Image Docker mà ta đã push lên Artifact Registry ở Ngày 3 & 4
@@ -21,6 +20,7 @@ export default $config({
       location: "asia-southeast1",
       template: {
         spec: {
+          serviceAccountName: "cloudrun-runtime-sa@khanh-fastapi-deploy-937.iam.gserviceaccount.com",
           containers: [{
             image: imageUrl,
             ports: [{ containerPort: 8080 }],

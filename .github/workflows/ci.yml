@@ -40,15 +40,21 @@ jobs:
     needs: test-python-code
     runs-on: ubuntu-latest
     
+    # Cấp quyền cho GitHub Runner lấy OIDC token để nói chuyện với WIF của Google
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         
-      - name: Google Auth
+      - name: Google Auth (Workload Identity Federation)
         id: auth
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
+          workload_identity_provider: 'projects/990324417574/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'github-ci-sa@khanh-fastapi-deploy-937.iam.gserviceaccount.com'
 
       - name: Setup Google Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
