@@ -52,22 +52,76 @@ flowchart LR
 
 | Thuật ngữ | Giải thích ngắn gọn | Vai trò trong dự án |
 |---|---|---|
-| CI/CD | Tích hợp và triển khai liên tục. | Tự động hóa kiểm thử và đẩy code lên server. |
-| Docker Image | Gói phần mềm chứa mã nguồn và môi trường. | Đảm bảo code chạy đồng nhất ở mọi nơi. |
-| Cloud Run | Máy chủ phi máy chủ (Serverless) của Google. | Chạy container web tự động mở rộng. |
-| IaC | Cơ sở hạ tầng dưới dạng mã. | Khai báo máy chủ bằng file code thay vì click tay. |
+| **Docker Image** | Gói phần mềm bất biến chứa mã nguồn + môi trường chạy | Đảm bảo ứng dụng chạy đồng nhất từ máy local đến Cloud Run |
+| **Docker Container** | Phiên bản thực thi cô lập của một Image | Chạy FastAPI API trên mọi môi trường mà không cần cài Python thủ công |
+| **Multi-stage Build** | Dockerfile dùng nhiều giai đoạn để loại bỏ file thừa khỏi image cuối | Tối ưu kích thước image, không đưa công cụ build vào production |
+| **Artifact Registry** | Kho lưu trữ Docker image có phiên bản của Google Cloud | Lưu mọi bản build theo `git sha`, cho phép rollback chính xác |
+| **Cloud Run** | Dịch vụ serverless của GCP chạy container, tự scale | Host ứng dụng FastAPI, tự mở rộng/thu hẹp theo lưu lượng |
+| **CI** (Continuous Integration) | Tự động chạy test và build mỗi khi có commit mới | GitHub Actions chạy Pytest + build Docker image khi push lên `main` |
+| **CD** (Continuous Deployment) | Tự động đẩy phiên bản mới lên server sau khi CI thành công | GitHub Actions deploy image lên Cloud Run không cần thao tác thủ công |
+| **Service Account** | Tài khoản robot đại diện cho ứng dụng/quy trình, không phải người dùng | GitHub Actions dùng để xác thực với GCP và có quyền push + deploy |
+| **IAM** (Identity and Access Management) | Hệ thống quản lý quyền truy cập tài nguyên GCP | Kiểm soát quyền của Service Account theo nguyên tắc Least Privilege |
+| **Least Privilege** | Nguyên tắc chỉ cấp đúng quyền tối thiểu cần thiết | Service Account CI/CD chỉ có `artifactregistry.writer` + `run.admin`, không phải Owner |
+| **IaC** (Infrastructure as Code) | Khai báo hạ tầng bằng code thay vì thao tác tay trên Console | SST dùng TypeScript để định nghĩa Cloud Run, VPC, tái tạo môi trường không cần click |
+| **SST** | Framework IaC hỗ trợ GCP/AWS, dùng Pulumi engine | Khai báo Cloud Run service trong `sst.config.ts`, deploy bằng `npx sst deploy` |
+| **Stage** | Môi trường riêng biệt trong SST (dev / staging / prod) | Tách biệt tài nguyên GCP cho từng môi trường, tránh ảnh hưởng chéo |
+| **VPC** (Virtual Private Cloud) | Mạng ảo riêng tư trong GCP, cô lập tài nguyên | Tạo mạng nội bộ riêng cho Compute Engine VM, kiểm soát luồng traffic |
+| **Firewall Rule** | Quy tắc cho phép hoặc chặn traffic vào/ra VPC | Chỉ cho phép SSH (port 22) và HTTP (port 80/443) đến VM |
+| **Revision** | Mỗi lần deploy Cloud Run tạo ra một revision bất biến | Cho phép rollback về bất kỳ phiên bản nào mà không rebuild image |
 
-**Docker Container**
-- **Nó là gì:** Một phiên bản thực thi độc lập và cô lập của Docker Image.
-- **Vai trò trong dự án:** Chạy ứng dụng FastAPI một cách an toàn mà không phụ thuộc vào hệ điều hành máy chủ.
-- **Ví dụ thực tế:** `docker run -d -p 8080:8080 fastapi-demo-project:v1.0.0`
-- **Điểm cần lưu ý:** Container mất dữ liệu khi bị xóa. Port bên trong phải khớp với lệnh `EXPOSE`.
+---
 
-**Infrastructure as Code (IaC)**
-- **Nó là gì:** Quản lý hạ tầng (máy chủ, mạng) thông qua các tệp mã nguồn.
-- **Vai trò trong dự án:** Dùng SST để định nghĩa Cloud Run bằng code TypeScript, giúp dễ dàng tái tạo môi trường.
-- **Ví dụ thực tế:** File `sst.config.ts`.
-- **Điểm cần lưu ý:** Khai báo cấu hình sai có thể dẫn đến xóa nhầm tài nguyên.
+### Docker & Containerization
+
+**Docker Image — Layer Caching**
+- **Nó là gì:** Mỗi lệnh trong Dockerfile tạo một layer. Layer không thay đổi sẽ được tái sử dụng khi build lại.
+- **Vai trò:** Giảm thời gian build CI đáng kể — chỉ rebuild layer bị thay đổi.
+- **Ví dụ thực tế:** Đặt `COPY requirements.txt` trước `COPY src/` để layer cài dependencies chỉ rebuild khi file requirements thay đổi.
+- **Điểm cần lưu ý:** Thứ tự lệnh trong Dockerfile ảnh hưởng trực tiếp đến hiệu quả cache.
+
+**Multi-stage Build**
+- **Nó là gì:** Dockerfile có nhiều giai đoạn `FROM`, giai đoạn cuối chỉ copy kết quả cần thiết.
+- **Vai trò:** Image production không chứa compiler, test tools → nhỏ hơn, bảo mật hơn.
+- **Điểm cần lưu ý:** Chỉ áp dụng khi ngôn ngữ có bước compile (Go, Java). Python ít lợi hơn nhưng vẫn dùng được để loại dev dependencies.
+
+---
+
+### CI/CD với GitHub Actions
+
+**Continuous Integration (CI)**
+- **Nó là gì:** Mỗi commit được tự động kiểm thử và build ngay lập tức.
+- **Vai trò:** Phát hiện lỗi sớm trước khi merge. Pipeline chạy `black --check`, `ruff`, `pytest`.
+- **Ví dụ thực tế:** Trigger `on: push: branches: [main]` trong `.github/workflows/ci.yml`.
+- **Điểm cần lưu ý:** CI phải pass trước khi CD được kích hoạt (job dependency).
+
+**Continuous Deployment (CD)**
+- **Nó là gì:** Tự động triển khai phiên bản mới lên môi trường sau khi CI thành công.
+- **Vai trò:** Sau mỗi push lên `main`, image mới được push lên Artifact Registry và deploy lên Cloud Run tự động, không cần thao tác thủ công.
+- **Điểm cần lưu ý:** Cần quản lý **Secrets** (GCP_SA_KEY, GCP_PROJECT_ID) trong GitHub Repository Settings → không bao giờ hard-code vào file.
+
+---
+
+### Security & IAM
+
+**Least Privilege (Quyền tối thiểu)**
+- **Nó là gì:** Chỉ cấp đúng quyền mà tài khoản cần, không thừa, không thiếu.
+- **Vai trò:** Service Account `deploy-robot` chỉ có quyền `artifactregistry.writer` + `run.admin` + `iam.serviceAccountUser` — không phải `roles/owner`.
+- **Điểm cần lưu ý:** Cấp quyền `roles/owner` cho CI/CD là sai nghiêm trọng về bảo mật.
+
+**Service Account vs User Account**
+- **Nó là gì:** Service Account là danh tính cho máy/quy trình; User Account là danh tính cho người.
+- **Vai trò:** GitHub Actions dùng Service Account JSON Key để xác thực với GCP — không dùng tài khoản cá nhân.
+- **Điểm cần lưu ý:** JSON Key bị lộ = toàn bộ quyền của Service Account bị xâm phạm. Phải lưu trong GitHub Secrets, không commit vào repository.
+
+---
+
+### Infrastructure as Code với SST
+
+**SST + Pulumi Engine**
+- **Nó là gì:** SST là framework IaC dùng TypeScript, chạy trên Pulumi để quản lý tài nguyên GCP/AWS.
+- **Vai trò:** Thay thế hoàn toàn việc click trên GCP Console. Mọi tài nguyên (Cloud Run, VPC) được khai báo trong `sst.config.ts`.
+- **Ví dụ thực tế:** `npx sst deploy --stage dev` → SST tự tạo Cloud Run service cho môi trường dev.
+- **Điểm cần lưu ý:** SST quản lý **state** (trạng thái hạ tầng). Xóa tay tài nguyên trên Console mà không qua SST sẽ gây lệch state, dẫn đến lỗi khi deploy lần sau.
 
 ## 5. Technology Stack
 
