@@ -675,3 +675,161 @@ docker rm -f fastapi-test
 
 **Kết quả đạt được (Output):**
 Ứng dụng API đã được **đóng gói độc lập** và đang **chạy thành công trên localhost thông qua Docker**, sẵn sàng cho việc đưa lên Cloud ở các ngày tiếp theo. Không còn phụ thuộc vào môi trường Python local của máy.
+
+---
+
+#### 📅 DAY 3 — Advanced Docker & Artifact Registry
+
+> **Mục tiêu:** Lưu trữ an toàn Docker Image lên Google Cloud (Artifact Registry) với chiến lược quản lý phiên bản (versioning) rõ ràng.
+> **Thực hiện:** Cần Artifact Registry để CI/CD có thể lấy Image deploy lên Cloud Run.
+
+---
+
+### Bước 1: Tạo kho lưu trữ Artifact Registry
+
+**Mục đích:** Tạo một vùng chứa (Repository) riêng biệt trên đám mây của GCP để lưu các phiên bản Docker Image.
+
+**Thực hiện tại:** Terminal nội bộ.
+
+**Câu lệnh:**
+```bash
+gcloud artifacts repositories create fastapi-demo \
+    --repository-format=docker \
+    --location=asia-southeast1 \
+    --description="FastAPI Demo images"
+```
+
+**Giải thích:**
+- `fastapi-demo`: Tên kho lưu trữ.
+- `--repository-format=docker`: Xác định đây là kho chứa Docker Image (không phải kho chứa npm, maven, v.v.).
+- `--location=asia-southeast1`: Đặt máy chủ tại Singapore để tối ưu tốc độ mạng.
+
+**Kết quả mong đợi:**
+```text
+Created repository [fastapi-demo].
+```
+
+**Cách xác nhận:**
+```bash
+gcloud artifacts repositories list
+```
+
+**Khả năng chạy lại:** ❌ **Không lũy đẳng**. Nếu kho lưu trữ đã tồn tại, lệnh sẽ báo lỗi `ALREADY_EXISTS`.
+
+---
+
+### Bước 2: Cấu hình Docker Authentication với GCP
+
+**Mục đích:** Cấp quyền cho lệnh `docker` local được phép đẩy (push) dữ liệu lên máy chủ của Google Cloud.
+
+**Thực hiện tại:** Terminal nội bộ.
+
+**Câu lệnh:**
+```bash
+gcloud auth configure-docker asia-southeast1-docker.pkg.dev
+```
+
+**Giải thích:**
+- GCP tạo một credential trợ giúp (`credential-helper`) cho Docker. Mỗi khi Docker kết nối tới vùng `asia-southeast1`, nó sẽ tự động dùng quyền của tài khoản Google đã đăng nhập.
+
+**Kết quả mong đợi:** Cập nhật thành công file `~/.docker/config.json`.
+**Khả năng chạy lại:** ✅ Lũy đẳng. Cấu hình lại không gây ra lỗi.
+
+---
+
+### Bước 3: Gắn thẻ phiên bản (Tagging Strategy)
+
+**Mục đích:** Đổi tên (Tag) Image từ tên ngắn ở máy local thành đường dẫn dài chuẩn của GCP để push lên đúng kho.
+
+**Thực hiện tại:** Terminal nội bộ.
+
+**Câu lệnh:**
+```bash
+docker tag fastapi-demo-project:v1.0.0 asia-southeast1-docker.pkg.dev/khanh-fastapi-deploy-937/fastapi-demo/fastapi-demo-project:v1.0.0
+
+# Gắn thêm tag latest
+docker tag fastapi-demo-project:v1.0.0 asia-southeast1-docker.pkg.dev/khanh-fastapi-deploy-937/fastapi-demo/fastapi-demo-project:latest
+```
+
+**Chiến lược Versioning (Phiên bản):**
+- Định dạng đường dẫn GCP: `<REGION>-docker.pkg.dev/<PROJECT_ID>/<REPO_NAME>/<IMAGE_NAME>:<TAG>`
+- Dùng `v1.0.0`, `v1.0.1` cho các đợt phát hành chính thức (Release).
+- Dùng `latest` cho phiên bản mới nhất.
+- Trong CI/CD, tự động dùng `git sha` (vd: `4bcf108`) để tag, đảm bảo mỗi commit là một phiên bản Image duy nhất, dễ dàng rollback.
+
+**Kết quả mong đợi:** Không báo lỗi.
+**Khả năng chạy lại:** ✅ Lũy đẳng. Ghi đè tag nếu đã có.
+
+---
+
+### Bước 4: Push Image lên Artifact Registry
+
+**Mục đích:** Tải Image từ máy tính của bạn lên kho lưu trữ đám mây.
+
+**Thực hiện tại:** Terminal nội bộ.
+
+**Câu lệnh:**
+```bash
+docker push asia-southeast1-docker.pkg.dev/khanh-fastapi-deploy-937/fastapi-demo/fastapi-demo-project:v1.0.0
+docker push asia-southeast1-docker.pkg.dev/khanh-fastapi-deploy-937/fastapi-demo/fastapi-demo-project:latest
+```
+
+**Giải thích:** Chỉ những Layer mới hoặc bị thay đổi mới được đẩy lên (tiết kiệm băng thông nhờ Layer Caching).
+
+**Kết quả mong đợi:**
+```text
+The push refers to repository [...]
+v1.0.0: digest: sha256:... size: 1989
+```
+
+**Cách xác nhận:** Vào Google Cloud Console -> Artifact Registry -> `fastapi-demo` để xem Image. Hoặc dùng lệnh:
+```bash
+gcloud artifacts docker images list asia-southeast1-docker.pkg.dev/khanh-fastapi-deploy-937/fastapi-demo/fastapi-demo-project
+```
+
+**Khả năng chạy lại:** ✅ Lũy đẳng. Push lại bản không đổi sẽ báo `Layer already exists`.
+
+---
+
+### Bước 5: Pull Image để kiểm tra (Tùy chọn)
+
+**Mục đích:** Xóa thử Image ở máy local và tải về từ đám mây để đảm bảo quá trình đẩy lên đã thành công mỹ mãn.
+
+**Câu lệnh:**
+```bash
+# Xóa bản copy ở local
+docker rmi asia-southeast1-docker.pkg.dev/khanh-fastapi-deploy-937/fastapi-demo/fastapi-demo-project:latest
+
+# Tải về lại từ GCP
+docker pull asia-southeast1-docker.pkg.dev/khanh-fastapi-deploy-937/fastapi-demo/fastapi-demo-project:latest
+```
+
+---
+
+### 🔴 Troubleshooting Day 3
+
+**Lỗi: Xác thực thất bại khi push (Registry Authentication Issues)**
+- **Biểu hiện:** `denied: Permission "artifactregistry.repositories.uploadArtifacts" denied on resource` hoặc `unauthorized: authentication required`.
+- **Nguyên nhân:** Chưa chạy lệnh `configure-docker` ở Bước 2, hoặc tài khoản GCP của bạn/Service Account không có quyền `roles/artifactregistry.writer`.
+- **Cách khắc phục:** 
+  1. Chạy lại: `gcloud auth configure-docker asia-southeast1-docker.pkg.dev`
+  2. Đảm bảo bạn đang ở đúng tài khoản: `gcloud auth list`.
+
+**Lỗi: Sai đường dẫn Push (Invalid Reference Format)**
+- **Biểu hiện:** `invalid reference format` hoặc đẩy nhầm lên Docker Hub.
+- **Nguyên nhân:** Sai cú pháp URL của Google Cloud (thiếu `.pkg.dev`, sai vùng, viết hoa sai quy định).
+- **Cách khắc phục:** Đảm bảo toàn bộ chữ trong tag đều là chữ thường (lowercase) và đúng form: `<REGION>-docker.pkg.dev/...`
+
+---
+
+### 📝 Tổng hợp kết quả Day 3
+
+**Những gì đã thực hiện:**
+1. Khởi tạo kho lưu trữ Docker Image bảo mật trên Google Cloud (Artifact Registry).
+2. Định nghĩa cấu trúc phiên bản (Versioning) rõ ràng giữa `latest` và các bản tag cụ thể.
+3. Liên kết xác thực giữa Docker local và GCP.
+4. Đẩy Image từ máy nội bộ lên đám mây thành công.
+
+**Kết quả đạt được (Output):**
+Ứng dụng của bạn giờ đã có **những phiên bản Docker Image được lưu trữ an toàn trên Artifact Registry**. Mỗi lần bạn cần triển khai (Deploy) hay quay ngược (Rollback) phiên bản, Server sẽ lấy trực tiếp từ kho chứa tốc độ cao này mà không cần build lại. Mảnh ghép chuẩn bị cuối cùng trước khi đưa web ra Internet!
+
