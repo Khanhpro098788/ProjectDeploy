@@ -937,3 +937,131 @@ gcloud run services update fastapi-demo-project \
 Một dịch vụ **Cloud Run API công khai, hoạt động 100% trên Internet**. Bạn có thể gửi Endpoint URL cho bất kỳ ai trên thế giới để họ test thử trang Swagger UI của API ứng dụng. 
 *(Đây là thành quả quan trọng khép lại phần triển khai thủ công trước khi chuyển sang tự động hóa CI/CD ở Tuần 2).*
 
+---
+
+#### 📅 DAY 5 — Networking Basics & Compute Engine
+
+> **Mục tiêu:** Tạo hệ thống mạng ảo (VPC) tự quản lý, thiết lập tường lửa (Firewall) an toàn và chạy máy chủ ảo (Compute Engine VM) để phân biệt với Serverless.
+> **Thực hiện:** Khi cần chạy các hệ thống không phù hợp với Serverless (ví dụ: database truyền thống, máy chủ VPN).
+
+---
+
+### Bước 1: Tạo Virtual Private Cloud (VPC) tùy chỉnh
+
+**Mục đích:** Xây dựng một không gian mạng nội bộ hoàn toàn cô lập thay vì dùng mạng `default` của Google.
+
+**Thực hiện tại:** Terminal nội bộ.
+
+**Câu lệnh:**
+```bash
+gcloud compute networks create custom-vpc \
+    --subnet-mode=custom \
+    --bgp-routing-mode=regional
+
+gcloud compute networks subnets create custom-subnet-asia \
+    --network=custom-vpc \
+    --region=asia-southeast1 \
+    --range=10.0.1.0/24
+```
+
+**Giải thích:**
+- `custom-vpc`: Tên mạng ảo. Chế độ `--subnet-mode=custom` yêu cầu bạn tự cấu hình dải IP (tốt cho bảo mật), không tạo tự động trên toàn thế giới.
+- `custom-subnet-asia`: Tạo một mạng con (Subnet) tại Singapore với dải IP `10.0.1.0` đến `10.0.1.255`. Mọi máy chủ trong subnet này sẽ có IP nội bộ nằm trong dải này.
+
+**Kết quả mong đợi:** Tạo thành công Mạng và Subnet.
+**Khả năng chạy lại:** ❌ **Không lũy đẳng**. Mạng đã tạo không thể tạo đè.
+
+---
+
+### Bước 2: Thiết lập Firewall Rules (Quy tắc tường lửa)
+
+**Mục đích:** Mở cửa cho phép các luồng dữ liệu (traffic) hợp lệ đi vào mạng ảo. Mặc định VPC tùy chỉnh sẽ chặn toàn bộ các kết nối từ Internet (Zero Trust).
+
+**Câu lệnh:**
+```bash
+# Cho phép SSH (Port 22) để điều khiển máy chủ
+gcloud compute firewall-rules create allow-ssh-custom \
+    --network=custom-vpc \
+    --allow=tcp:22 \
+    --source-ranges=0.0.0.0/0 \
+    --target-tags=allow-ssh
+
+# Cho phép HTTP (Port 80) để vào web
+gcloud compute firewall-rules create allow-http-custom \
+    --network=custom-vpc \
+    --allow=tcp:80 \
+    --source-ranges=0.0.0.0/0 \
+    --target-tags=allow-http
+```
+
+**Giải thích:**
+- `--source-ranges=0.0.0.0/0`: Cho phép kết nối từ mọi IP trên thế giới (Internet).
+- `--target-tags`: Dùng thẻ tag để gán rule này cho những máy chủ ảo cụ thể, không mở bừa bãi cho toàn bộ mạng.
+
+**Khả năng chạy lại:** ❌ **Không lũy đẳng**. Trùng tên rule sẽ báo lỗi.
+
+---
+
+### Bước 3: Triển khai Máy chủ ảo (Compute Engine VM)
+
+**Mục đích:** Thuê một máy chủ ảo chạy hệ điều hành Ubuntu bên trong mạng nội bộ vừa tạo. Đây là kiến trúc máy chủ truyền thống (IaaS) khác với Cloud Run (PaaS/Serverless).
+
+**Câu lệnh:**
+```bash
+gcloud compute instances create demo-vm \
+    --zone=asia-southeast1-a \
+    --machine-type=e2-micro \
+    --network=custom-vpc \
+    --subnet=custom-subnet-asia \
+    --tags=allow-ssh,allow-http \
+    --image-family=ubuntu-2204-lts \
+    --image-project=ubuntu-os-cloud
+```
+
+**Giải thích:**
+- `--machine-type=e2-micro`: Loại máy chủ cấu hình nhỏ (vừa đủ test, rẻ/miễn phí).
+- `--network / --subnet`: Đặt máy chủ vào đúng mạng VPC nội bộ đã tạo.
+- `--tags=allow-ssh,allow-http`: Áp dụng 2 lớp tường lửa đã cấu hình ở Bước 2. Máy này sẽ được phép nhận tín hiệu ở cổng 22 và 80.
+
+**Cách xác nhận:**
+```bash
+gcloud compute instances list
+```
+Lấy địa chỉ **EXTERNAL_IP** (IP công khai) của máy tính để chạy web hoặc SSH.
+
+---
+
+### Bước 4: So sánh Cloud Run Networking vs VM Networking
+
+| Tiêu chí | Cloud Run (Serverless) | Compute Engine (VM) |
+|---|---|---|
+| **Mạng mặc định** | Chạy trên hạ tầng đóng kín của Google, không thấy được Switch / Router vật lý. | Chạy trực tiếp trong VPC của bạn. Bạn toàn quyền cấu hình IP nội bộ, Subnet. |
+| **IP Công khai** | Giao tiếp qua 1 URL HTTPS chung do GCP cấp (Routing động). | Mỗi máy có 1 IP tĩnh (External IP) riêng biệt truy cập thẳng vào máy. |
+| **Bảo mật** | Chủ yếu bằng IAM và mã token OAuth. | Tường lửa mạng tĩnh (Chặn IP, chặn TCP/UDP Port). |
+| **Bảo trì HĐH**| Google tự lo toàn bộ bản vá lỗi hệ điều hành. | Bạn phải tự SSH vào, tự gõ lệnh update Ubuntu. |
+
+---
+
+### 🔴 Troubleshooting Day 5
+
+**Lỗi: Không thể kết nối SSH vào máy ảo**
+- **Biểu hiện:** Gõ lệnh `gcloud compute ssh demo-vm` bị treo (timeout) hoặc Connection refused.
+- **Nguyên nhân:** Có thể bạn quên tạo Firewall rule `allow-ssh-custom` (cổng 22) hoặc quên gắn cờ `--tags=allow-ssh` lúc tạo máy ảo.
+- **Cách khắc phục:** 
+  Kiểm tra tag của máy ảo: `gcloud compute instances describe demo-vm --zone=asia-southeast1-a --format="value(tags.items)"`
+  Nếu thiếu tag, dùng lệnh: `gcloud compute instances add-tags demo-vm --zone=asia-southeast1-a --tags=allow-ssh`
+
+---
+
+### 📝 Tổng hợp kết quả Day 5
+
+**Những gì đã thực hiện:**
+1. Rời khỏi hệ thống mạng mặc định (Default Network) của Google.
+2. Xây dựng một mạng VPC tùy chỉnh `custom-vpc` an toàn với Subnet khu vực Châu Á.
+3. Lập ra ranh giới bảo mật bằng các quy tắc Tường lửa (Firewall Rules).
+4. Khởi chạy một hệ thống máy chủ thật chạy Ubuntu, gắn chặt vào mạng và tường lửa vừa tạo.
+
+**Kết quả đạt được (Output):**
+Một máy ảo (VM) **Compute Engine đang chạy ổn định trong mạng nội bộ do chính bạn làm chủ**. Máy này đã mở đúng 2 cánh cửa (port 22 cho quản trị và port 80 cho web), chặn toàn bộ những kết nối ngoại lai khác. Thông qua ngày này, bạn đã hiểu rõ ranh giới khác biệt giữa việc "thuê phần cứng" (VM Networking) và "thuê không gian chạy code" (Cloud Run Serverless Networking).
+
+
