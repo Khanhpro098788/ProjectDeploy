@@ -1082,5 +1082,129 @@ Bạn không chỉ "biết gõ lệnh", mà đã hiểu rõ **luồng đi của 
 
 **Đây chính là cách triển khai thủ công (Manual Deployment).** Nó là nền tảng tối quan trọng. Giờ đây, khi đã hiểu rõ từng dòng lệnh `gcloud` và `docker`, bạn đã hoàn toàn sẵn sàng bước sang **WEEK 2: Tự động hóa hoàn toàn với CI/CD (GitHub Actions) và Infrastructure as Code**.
 
+---
 
+### WEEK 2: Automation (CI/CD) & Infrastructure as Code (IaC)
 
+#### 📅 DAY 6 — GitHub Actions Fundamentals (CI)
+
+> **Mục tiêu:** Tự động hóa quá trình kiểm thử (Test) và đóng gói (Build Docker Image) mỗi khi có code mới được đẩy lên GitHub.
+> **Thực hiện:** Thiết lập file YAML cấu hình CI/CD trên repository GitHub.
+
+---
+
+### Bước 1: Khái niệm CI/CD & Pipeline Flow
+
+**Mục đích:** Hiểu luồng đi của một tự động hóa CI.
+- **CI (Continuous Integration):** Tích hợp liên tục. Đảm bảo code mới không làm hỏng code cũ bằng cách tự động chạy Test và Build.
+- **Trigger:** Sự kiện "bóp cò" để Pipeline chạy (ví dụ: lệnh `git push` lên nhánh `main`).
+- **Runner:** Một máy chủ ảo (Ubuntu/Windows) do GitHub cung cấp miễn phí để chạy các lệnh của bạn.
+
+---
+
+### Bước 2: Thiết lập GitHub Secrets
+
+**Mục đích:** Khai báo biến bí mật (ví dụ: `GCP_CREDENTIALS`) để GitHub Runner có quyền gọi Google Cloud API mà không làm lộ mã JSON ra mã nguồn mở.
+
+**Thực hiện tại:** Trình duyệt web (GitHub).
+
+**Các bước thao tác:**
+1. Vào trang GitHub Repository của dự án > **Settings** > **Secrets and variables** > **Actions**.
+2. Nhấn **New repository secret**.
+3. **Name:** `GCP_CREDENTIALS`
+4. **Secret:** Copy và Paste toàn bộ nội dung file `gcp-key.json` đã tạo ở Day 1 vào đây.
+5. Nhấn **Add secret**.
+
+**Khả năng chạy lại:** ✅ Lũy đẳng. Bạn có thể xóa đi tạo lại secret bất cứ lúc nào.
+
+---
+
+### Bước 3: Khai báo Workflow (.github/workflows/ci.yml)
+
+**Mục đích:** Hướng dẫn máy chủ GitHub Runner các bước cần làm.
+
+**Thực hiện tại:** File `.github/workflows/ci.yml`
+
+**Nội dung cốt lõi của Job `test-python-code`:**
+```yaml
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  test-python-code:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip' # Bộ nhớ đệm giúp cài thư viện siêu tốc
+      - run: |
+          pip install -r requirements.txt
+          pytest -v
+```
+
+**Giải thích:**
+- `actions/checkout`: Lấy source code từ GitHub về máy Runner.
+- `cache: 'pip'`: Kỹ thuật tối ưu (Caching) giúp các lần chạy sau không phải tải lại các gói thư viện từ đầu.
+- `pytest -v`: Chạy script kiểm thử để rà soát lỗi.
+
+**Kết quả mong đợi:** Nếu code đúng, GitHub hiển thị dấu tick xanh (✅). Nếu code lỗi, nó sẽ hiển thị dấu X đỏ (❌) và ngăn chặn quá trình Deploy.
+
+---
+
+### Bước 4: Đóng gói Docker Image trên CI
+
+**Mục đích:** Tự động hóa hoàn toàn các lệnh gõ tay ở Day 3.
+
+**Nội dung cốt lõi của Job `build-and-deploy` (Phần CI):**
+```yaml
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: asia-southeast1-docker.pkg.dev/<PROJECT_ID>/fastapi-demo/fastapi-demo-project:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+```
+
+**Giải thích:**
+- `${{ github.sha }}`: Dùng mã băm của commit làm thẻ đánh dấu phiên bản tự động. Rất hữu ích để truy vết lỗi.
+- `cache-from / cache-to`: Dùng GitHub Actions cache (`type=gha`) để tái sử dụng Docker Layer đã build từ trước, tăng tốc độ build.
+
+**Cách xác nhận:**
+Gõ lệnh để commit và đẩy code lên:
+```bash
+git add .
+git commit -m "feat: setup CI pipeline"
+git push origin main
+```
+Sau đó mở tab **Actions** trên GitHub để theo dõi quá trình chạy thực tế.
+
+---
+
+### 🔴 Troubleshooting Day 6
+
+**Lỗi: Workflow không chạy khi push code**
+- **Biểu hiện:** Đã push code lên nhưng tab Actions trống trơn.
+- **Nguyên nhân:** Có thể file chưa được đặt đúng đường dẫn `.github/workflows/` (thiếu chữ 's' hoặc đặt sai thư mục gốc).
+
+**Lỗi: Job Auth báo Unauthorized**
+- **Biểu hiện:** Bước Google Auth báo lỗi xác thực credentials.
+- **Nguyên nhân:** Tên Secret khai báo trong file YAML (`${{ secrets.GCP_CREDENTIALS }}`) khác với tên bạn đã đặt trong Setting của GitHub, hoặc nội dung bị thiếu dấu ngoặc.
+- **Cách khắc phục:** Kiểm tra kỹ lại Bước 2.
+
+---
+
+### 📝 Tổng hợp kết quả Day 6
+
+**Những gì đã thực hiện:**
+1. Khám phá các khái niệm cốt lõi của CI/CD (Pipeline, Jobs, Steps, Runners, Triggers).
+2. Xử lý bài toán bảo mật thông tin nhạy cảm qua GitHub Secrets.
+3. Thiết lập Job tự động kéo code, tạo môi trường Python ảo, cài đặt thư viện và chạy unit test.
+4. Tích hợp Docker Buildx để build tự động trên máy chủ GitHub thay vì máy cá nhân, sử dụng mã Git SHA làm version tag.
+
+**Kết quả đạt được (Output):**
+Bạn đã có một **CI Pipeline tự động (Continuous Integration) kiểm thử và đóng gói Docker Image**. Giờ đây, thay vì ngồi chờ máy tính tự gõ lệnh build/push, bạn chỉ cần gõ đúng một lệnh `git push`, toàn bộ quá trình xác minh chất lượng và build Image sẽ được hệ thống máy chủ tự động làm hộ một cách an toàn và chính xác tuyệt đối.
