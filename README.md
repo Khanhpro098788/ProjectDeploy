@@ -1515,3 +1515,56 @@ SST sẽ In ra (Export) các biến quan trọng sau khi Deploy xong. Giả sử
 **Kết quả đạt được (Output):**
 **Hệ thống máy chủ đã được vận hành 100% bằng code (Reproducible Infrastructure)**. Không còn khái niệm "tài liệu bị lỗi thời" hay "bạn mới vào công ty không biết bấm nút nào trên Google Cloud". Nếu server bị lỗi, bạn chỉ mất đúng 1 phút gõ `npx sst deploy` để GCP tạo lại toàn bộ hệ thống y như cũ.
 
+---
+
+#### 📅 DAY 10 — Evaluation Project & Week 2 Summary
+
+> **Mục tiêu:** Tổng hợp toàn bộ kiến thức của Tuần 1 và Tuần 2 thành một dự án hoàn chỉnh để báo cáo (Evaluation Project).
+> **Yêu cầu:** Đảm bảo dự án đáp ứng toàn bộ các tiêu chí đánh giá của kỳ thực tập Kỹ sư Đám mây.
+
+---
+
+### 1. Phạm vi Đánh giá Cá nhân (Evaluation Scope)
+
+Để vượt qua bài đánh giá Tuần 2, hệ thống của bạn đã phải đạt được các mốc sau:
+- [x] **Dockerized application:** Ứng dụng chạy độc lập trong Container với `Dockerfile` tối ưu nhiều bước.
+- [x] **Image stored in Artifact Registry:** Image được lưu trên GCP Artifact Registry an toàn thay vì Docker Hub.
+- [x] **Infrastructure defined using SST:** Hạ tầng (Cloud Run & IAM) được code bằng TypeScript qua `sst.config.ts`.
+- [x] **GitHub Actions pipeline for build and deploy:** Khi gõ `git push`, code tự động Test, Build và Deploy lên Cloud Run hoàn toàn không cần sự can thiệp của con người.
+
+---
+
+### 2. Giao nộp kết quả (Submission)
+
+Phần này dùng để trình bày sản phẩm cuối cùng cho người đánh giá (Reviewer).
+
+- **GitHub Repository:** [Điền đường dẫn GitHub của bạn vào đây]
+- **Cloud Run Service URL:** [Điền đường dẫn URL thật của ứng dụng vào đây]
+
+#### Thiết kế Kiến trúc & CI/CD Flow (Architecture & Infra Design)
+1. Lập trình viên push code lên nhánh `main`.
+2. GitHub Actions (CI) nhận tín hiệu, khởi tạo Runner.
+3. Runner chạy `pytest` để kiểm tra lỗi logic.
+4. Nếu pass, Runner tiến hành build Docker Image và cấp tag phiên bản theo mã Git SHA.
+5. Runner dùng Service Account Token để đăng nhập vào GCP và đẩy Image lên Artifact Registry.
+6. Runner gọi lệnh `npx sst deploy` (hoặc `gcloud run`) để trỏ môi trường Cloud Run hiện tại sang Image mới nhất.
+7. Toàn bộ hạ tầng mạng, quyền hạn (IAM) và cấu hình biến môi trường đều được định nghĩa tĩnh qua Infrastructure as Code (SST).
+
+---
+
+### 3. Postmortem (Bài học kinh nghiệm & Xử lý sự cố)
+
+*(Ghi lại một sự cố đáng nhớ nhất trong quá trình làm dự án và cách bạn đã giải quyết)*
+
+**Sự cố:** Lỗi HTTP 503 khi vừa deploy lên Cloud Run.
+- **Nguyên nhân:** Bê nguyên cấu hình chạy local của FastAPI (cổng mặc định 8000) lên Cloud Run, trong khi Cloud Run ép buộc container phải lắng nghe cổng động `$PORT` (mặc định là 8080).
+- **Cách xử lý:** Thay vì hard-code, tôi đã sửa `Dockerfile` để khai báo biến môi trường `ENV PORT=8080` và chạy lệnh `CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8080"]`. Sau đó đẩy code lên và CI/CD tự động sửa lỗi thành công.
+- **Bài học:** Môi trường đám mây (Cloud) luôn có những tiêu chuẩn khắt khe hơn máy cá nhân (Local). Phải luôn chú ý đến Cổng (Ports) và Phân quyền (Permissions).
+
+---
+
+## 🏆 TỔNG KẾT WEEK 2: Chuyển mình thành Kỹ sư Đám mây
+
+Kết thúc **Week 2**, bạn không chỉ tạo ra một trang web, mà bạn đã tạo ra **một cỗ máy tự động sản xuất và vận hành trang web**. Việc kết hợp sức mạnh của **CI/CD (GitHub Actions)** và **Infrastructure as Code (sst.dev)** đã giúp bạn tiết kiệm hàng trăm giờ thao tác thủ công, triệt tiêu lỗi do con người, và nâng chuẩn dự án lên cấp độ Doanh nghiệp (Enterprise-grade). Chúc mừng bạn đã hoàn thành xuất sắc!
+
+
