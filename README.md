@@ -1064,4 +1064,23 @@ Lấy địa chỉ **EXTERNAL_IP** (IP công khai) của máy tính để chạy
 **Kết quả đạt được (Output):**
 Một máy ảo (VM) **Compute Engine đang chạy ổn định trong mạng nội bộ do chính bạn làm chủ**. Máy này đã mở đúng 2 cánh cửa (port 22 cho quản trị và port 80 cho web), chặn toàn bộ những kết nối ngoại lai khác. Thông qua ngày này, bạn đã hiểu rõ ranh giới khác biệt giữa việc "thuê phần cứng" (VM Networking) và "thuê không gian chạy code" (Cloud Run Serverless Networking).
 
+---
+
+## 🏆 TỔNG KẾT WEEK 1: Thành quả & Bước đệm
+
+Chỉ trong **Tuần 1**, bạn đã đi từ một thư mục mã nguồn trống trơn đến việc làm chủ được các dịch vụ cốt lõi nhất của Google Cloud Platform:
+
+### 📌 Bạn đã làm được gì?
+1. **Nền tảng Đám mây (GCP & IAM):** Khởi tạo thành công một Project an toàn, biết cách cấp phát quyền hạn (IAM) bằng nguyên tắc "Đặc quyền tối thiểu" qua Service Account.
+2. **Đóng gói Ứng dụng (Docker):** Biết cách cô lập ứng dụng bằng Dockerfile đa bước (multi-stage), tối ưu Layer caching, và hiểu rõ lý do phải dùng `.dockerignore`.
+3. **Lưu trữ Image (Artifact Registry):** Tự xây dựng kho chứa Docker tư nhân trên mây, thiết lập tag phiên bản gọn gàng và push image thành công.
+4. **Triển khai Serverless (Cloud Run):** Đưa thành công API ra Internet với HTTPS tự động, hiểu về cơ chế Revision và Auto-scaling.
+5. **Mạng cơ bản (VPC & VM):** Xây dựng mạng riêng ảo, cấu hình Firewall chặn/mở port chủ động và chạy máy chủ Compute Engine thực tế.
+
+### 🎯 Giá trị đạt được (Output toàn Tuần 1)
+Bạn không chỉ "biết gõ lệnh", mà đã hiểu rõ **luồng đi của một ứng dụng**: Từ máy cá nhân (Local) -> Đóng gói (Docker) -> Đưa lên Kho chứa (Artifact Registry) -> Chạy thực tế (Cloud Run / Compute Engine). 
+
+**Đây chính là cách triển khai thủ công (Manual Deployment).** Nó là nền tảng tối quan trọng. Giờ đây, khi đã hiểu rõ từng dòng lệnh `gcloud` và `docker`, bạn đã hoàn toàn sẵn sàng bước sang **WEEK 2: Tự động hóa hoàn toàn với CI/CD (GitHub Actions) và Infrastructure as Code**.
+
+
 
