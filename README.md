@@ -504,3 +504,161 @@ gcloud iam service-accounts keys list \
 - **Nguyên nhân:** Secret `GCP_CREDENTIALS` chưa được tạo hoặc nội dung JSON bị cắt bớt khi paste.
 - **Cách khắc phục:** Xóa secret cũ trên GitHub, tạo lại và paste lại toàn bộ nội dung file `gcp-key.json`.
 - **Cách xác nhận:** Xem log bước `Google Auth` trong tab Actions.
+
+---
+
+#### 📅 DAY 2 — Docker Fundamentals & Containerization
+
+> **Mục tiêu:** Đóng gói ứng dụng FastAPI thành Docker Image tối ưu và chạy thử thành công trên máy local.
+> **Thực hiện:** Mỗi khi có thay đổi code lớn hoặc cập nhật thư viện.
+
+---
+
+### Bước 1: Viết cấu trúc `.dockerignore`
+
+**Mục đích:** Loại bỏ các file rác, file ẩn của OS, IDE và môi trường ảo (venv) khỏi quá trình build Image.
+
+**Thực hiện tại:** File `.dockerignore` ở thư mục gốc.
+
+**Nội dung cốt lõi:**
+```text
+__pycache__/
+.venv/
+.pytest_cache/
+.env
+.git/
+node_modules/
+```
+
+**Giải thích:**
+- Tránh build image mang theo biến môi trường `.env` gây lộ lọt bảo mật.
+- Giảm dung lượng image bằng cách bỏ đi `node_modules` hoặc thư mục `.git`.
+
+**Kết quả mong đợi:** File `.dockerignore` lưu thành công.
+**Khả năng chạy lại:** ✅ Lũy đẳng. Sửa file nhiều lần không ảnh hưởng hệ thống.
+
+---
+
+### Bước 2: Xây dựng Dockerfile (Multi-stage Build)
+
+**Mục đích:** Khai báo từng lớp (layer) để tạo ra một Image an toàn, gọn nhẹ chạy FastAPI.
+
+**Thực hiện tại:** File `Dockerfile`.
+
+**Câu lệnh chính trong file:**
+```dockerfile
+# STAGE 1: Builder
+FROM python:3.11-slim AS builder
+WORKDIR /app
+COPY requirements.txt .
+RUN python -m venv /app/venv && /app/venv/bin/pip install -r requirements.txt
+
+# STAGE 2: Runtime
+FROM python:3.11-slim AS runtime
+WORKDIR /app
+COPY --from=builder /app/venv /app/venv
+COPY src/ ./src/
+USER appuser
+CMD ["/app/venv/bin/uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8080"]
+```
+
+**Giải thích:**
+- **Layer Caching:** `COPY requirements.txt` đứng trước `COPY src/`. Lớp cài thư viện sẽ không phải chạy lại nếu bạn chỉ sửa mã nguồn.
+- **Multi-stage:** Tách stage `builder` (cài gói) và `runtime` (chạy app). Stage cuối chỉ lấy `venv`, không lấy các công cụ build.
+- **Non-root User:** Lệnh `USER appuser` ngăn chặn rủi ro bảo mật nếu container bị chiếm quyền điều khiển.
+
+**Khả năng chạy lại:** ✅ Lũy đẳng. Tái sử dụng cache nếu không có thay đổi.
+
+---
+
+### Bước 3: Build Docker Image cục bộ
+
+**Mục đích:** Dịch file `Dockerfile` thành một Image hoàn chỉnh nằm trong máy tính.
+
+**Thực hiện tại:** Terminal nội bộ, tại thư mục gốc.
+
+**Câu lệnh:**
+```bash
+docker build -t fastapi-demo-project:v1.0.0 .
+```
+
+**Giải thích:**
+- `-t`: Gắn thẻ (tag) tên cho Image là `fastapi-demo-project` phiên bản `v1.0.0`.
+- `.`: Chỉ định thư mục build (hiện tại) để Docker tìm file `Dockerfile`.
+
+**Kết quả mong đợi:**
+```text
+=> => exporting to image
+=> => naming to docker.io/library/fastapi-demo-project:v1.0.0
+```
+
+**Cách xác nhận:**
+```bash
+docker images | Select-String "fastapi"
+```
+
+**Khả năng chạy lại:** ✅ Lũy đẳng. Build lại sẽ rất nhanh do sử dụng layer caching.
+
+---
+
+### Bước 4: Chạy thử Container (Run & Debug)
+
+**Mục đích:** Tạo một phiên bản chạy (Container) từ Image vừa build để kiểm tra thực tế.
+
+**Thực hiện tại:** Terminal nội bộ.
+
+**Câu lệnh:**
+```bash
+docker run -d -p 8080:8080 --name fastapi-test fastapi-demo-project:v1.0.0
+```
+
+**Giải thích:**
+- `-d`: Chạy ngầm (detached mode).
+- `-p 8080:8080`: Trỏ cổng 8080 trên máy thật vào cổng 8080 bên trong container.
+- `--name`: Đặt tên dễ nhớ cho container là `fastapi-test`.
+
+**Kết quả mong đợi:** In ra một chuỗi ID dài (Container ID).
+
+**Cách xác nhận:**
+Truy cập trình duyệt: `http://localhost:8080/docs`
+```bash
+docker ps
+```
+
+**Khả năng chạy lại:** ❌ **Không lũy đẳng**. Chạy lại lệnh trên sẽ báo lỗi trùng tên `fastapi-test` hoặc trùng cổng `8080`.
+**Cách làm sạch (Cleanup) trước khi chạy lại:**
+```bash
+docker rm -f fastapi-test
+```
+
+---
+
+### 🔴 Troubleshooting Day 2 (Common Pitfalls)
+
+**Lỗi: Address already in use (Trùng cổng)**
+- **Biểu hiện:** `Bind for 0.0.0.0:8080 failed: port is already allocated.`
+- **Nguyên nhân:** Có một ứng dụng khác (hoặc container cũ) đang chiếm cổng 8080 trên máy bạn.
+- **Cách khắc phục:** 
+  1. Dừng container cũ: `docker rm -f fastapi-test`
+  2. Hoặc đổi cổng ở máy local: `docker run -d -p 9090:8080 ...` (Truy cập `localhost:9090`).
+
+**Lỗi: Không tìm thấy thư viện khi chạy container**
+- **Biểu hiện:** `ModuleNotFoundError: No module named 'fastapi'`
+- **Nguyên nhân:** Có thể do `.dockerignore` vô tình loại bỏ file cần thiết, hoặc requirements.txt bị sai.
+- **Cách debug:** Đi sâu vào bên trong container để xem thư mục có gì:
+  ```bash
+  docker exec -it fastapi-test /bin/bash
+  ```
+
+---
+
+### 📝 Tổng hợp kết quả Day 2
+
+**Những gì đã thực hiện:**
+1. Định cấu hình loại bỏ rác qua `.dockerignore`.
+2. Tạo kiến trúc `Dockerfile` Multi-stage, tận dụng Layer Caching và bảo mật Non-root User.
+3. Build thành công Docker Image.
+4. Triển khai và debug Container chạy ngầm trên máy local.
+
+**Kết quả đạt được (Output):**
+Ứng dụng API đã được **đóng gói độc lập** và đang **chạy thành công trên localhost thông qua Docker**, sẵn sàng cho việc đưa lên Cloud ở các ngày tiếp theo. Không còn phụ thuộc vào môi trường Python local của máy.
