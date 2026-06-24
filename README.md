@@ -1208,3 +1208,99 @@ Sau đó mở tab **Actions** trên GitHub để theo dõi quá trình chạy th
 
 **Kết quả đạt được (Output):**
 Bạn đã có một **CI Pipeline tự động (Continuous Integration) kiểm thử và đóng gói Docker Image**. Giờ đây, thay vì ngồi chờ máy tính tự gõ lệnh build/push, bạn chỉ cần gõ đúng một lệnh `git push`, toàn bộ quá trình xác minh chất lượng và build Image sẽ được hệ thống máy chủ tự động làm hộ một cách an toàn và chính xác tuyệt đối.
+
+---
+
+#### 📅 DAY 7 — Continuous Deployment (CD) with GitHub Actions
+
+> **Mục tiêu:** Tự động hóa hoàn toàn bước đưa ứng dụng lên máy chủ (Cloud Run) sau khi quá trình Test và Build (Day 6) thành công.
+> **Thực hiện:** Nối tiếp vào file `ci.yml`. Mỗi khi push code lên nhánh `main`, hệ thống tự update website mà không cần gõ lệnh tay.
+
+---
+
+### Bước 1: Xác thực GitHub Actions với GCP (Authentication)
+
+**Mục đích:** Báo cho Google Cloud biết rằng máy chủ của GitHub đang yêu cầu kết nối dưới danh nghĩa của Service Account.
+
+**Nội dung cốt lõi:**
+```yaml
+      - name: Google Auth
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
+
+      - name: Setup Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+```
+
+**Giải thích:**
+- Action `auth@v2` là công cụ chính chủ của Google để đọc file JSON trong biến Secret và lấy mã Token tạm thời (mã này tồn tại trong 1 giờ).
+- Action `setup-gcloud` cài đặt công cụ dòng lệnh `gcloud` lên máy Runner để chuẩn bị gõ các lệnh như ở Day 4.
+
+**Kết quả mong đợi:** Báo `Login Succeeded`.
+**Khả năng chạy lại:** ✅ Lũy đẳng. Đăng nhập bao nhiêu lần cũng không ảnh hưởng hệ thống.
+
+---
+
+### Bước 2: Hoàn thiện luồng Build → Push → Deploy
+
+**Mục đích:** Kích hoạt lệnh Deploy ngay sau khi Docker Image được đẩy lên Artifact Registry. Dùng chung một phiên bản (Tag) để đảm bảo không râu ông nọ cắm cằm bà kia.
+
+**Nội dung cốt lõi:**
+```yaml
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy fastapi-demo-project \
+            --image asia-southeast1-docker.pkg.dev/khanh-fastapi-deploy-937/fastapi-demo/fastapi-demo-project:${{ github.sha }} \
+            --platform managed \
+            --region asia-southeast1 \
+            --allow-unauthenticated \
+            --port 8080
+```
+
+**Giải thích:**
+- Ở Day 6, ta tag image là `${{ github.sha }}`. Ở bước này, ta trỏ `--image` đúng vào SHA đó. Khi một mã băm mới xuất hiện, Cloud Run sẽ tạo một **Revision (Bản sửa đổi)** mới và chuyển toàn bộ người dùng (100% traffic) sang bản mới đó.
+
+---
+
+### Bước 3: Document Rollback Flow (Quy trình quay lui)
+
+**Mục đích:** Nếu đoạn code vừa được GitHub Actions deploy lên bị lỗi (Crash) trên production, cần chuyển ngay người dùng về phiên bản (Revision) an toàn trước đó.
+
+**Thực hiện tại:** Có 2 cách:
+1. **Dùng Giao diện (Console):** Vào trang Cloud Run > Revisions > Nhấn vào Revision cũ đang hoạt động tốt > Manage Traffic > Gắn 100% về nó.
+2. **Dùng Dòng lệnh:**
+```bash
+gcloud run services update-traffic fastapi-demo-project --to-revisions=fastapi-demo-project-00001-xxx=100
+```
+3. **Dùng Git Revert (Khuyên dùng trong CI/CD):**
+Gõ `git revert <commit-id-bị-lỗi>` rồi push lên. GitHub Actions sẽ tự build một Image lùi lại phiên bản cũ và deploy nó thành một Revision mới tinh nhưng mang nội dung cũ.
+
+---
+
+### 🔴 Troubleshooting Day 7 (Deploy Failures)
+
+**Lỗi: Thiếu quyền Artifact Registry**
+- **Biểu hiện:** Job báo lỗi `Permission 'artifactregistry.repositories.downloadArtifacts' denied`.
+- **Nguyên nhân:** Service Account bị mất quyền hoặc Image URL chỉ định sai.
+- **Cách khắc phục:** Cấp lại quyền `Artifact Registry Reader` hoặc kiểm tra lại đường dẫn tag trong `ci.yml`.
+
+**Lỗi: Deploy thất bại vì Application Crash**
+- **Biểu hiện:** GitHub Actions báo lỗi lệnh `gcloud run deploy...` kèm dòng `The user-provided container failed to start...`
+- **Nguyên nhân:** Lỗi code lọt qua bài Test nhưng chết lúc khởi động (ví dụ: mất kết nối Database, sai Port).
+- **Cách khắc phục:** Phải vào GCP Console > Cloud Run > Logs để đọc thông báo lỗi chi tiết của ứng dụng. Cập nhật sửa lỗi cục bộ, commit rồi đẩy lên lại.
+
+---
+
+### 📝 Tổng hợp kết quả Day 7
+
+**Những gì đã thực hiện:**
+1. Mở khóa cầu nối an toàn giữa hai gã khổng lồ GitHub và Google Cloud thông qua mã JSON.
+2. Tái hiện lại lệnh triển khai thủ công của Day 4 thành tự động hóa.
+3. Đóng gói luồng Pipeline hoàn chỉnh: Code được Push -> Chạy PyTest -> Build Image & Tag bằng mã SHA -> Đẩy lên Artifact Registry -> Triển khai lên Cloud Run.
+4. Lên tài liệu hướng dẫn kỹ năng Rollback bằng Traffic Routing khi gặp sự cố Production.
+
+**Kết quả đạt được (Output):**
+**Hệ thống Automated Deployment (Triển khai hoàn toàn tự động) đã hoàn thành xuất sắc**. Bạn không cần dùng Terminal hay Cloud Shell nữa. Bạn chỉ cần tập trung làm việc trên Visual Studio Code, nhấn Git Push, và 2 phút sau sản phẩm của bạn xuất hiện trên Internet, sẵn sàng phục vụ người dùng.
+
