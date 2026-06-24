@@ -833,3 +833,107 @@ docker pull asia-southeast1-docker.pkg.dev/khanh-fastapi-deploy-937/fastapi-demo
 **Kết quả đạt được (Output):**
 Ứng dụng của bạn giờ đã có **những phiên bản Docker Image được lưu trữ an toàn trên Artifact Registry**. Mỗi lần bạn cần triển khai (Deploy) hay quay ngược (Rollback) phiên bản, Server sẽ lấy trực tiếp từ kho chứa tốc độ cao này mà không cần build lại. Mảnh ghép chuẩn bị cuối cùng trước khi đưa web ra Internet!
 
+---
+
+#### 📅 DAY 4 — Deploying Containers to Cloud Run
+
+> **Mục tiêu:** Khởi chạy Container đã lưu trữ ở Artifact Registry thành một dịch vụ web công khai (Public API) trên Cloud Run.
+> **Thực hiện:** Khi muốn đưa sản phẩm ra Internet lần đầu tiên (triển khai thủ công).
+
+---
+
+### Bước 1: Triển khai thủ công lên Cloud Run
+
+**Mục đích:** Đưa ứng dụng ra Internet bằng dịch vụ Serverless của Google Cloud. Quá trình này sẽ tạo ra một Endpoint (URL) HTTPS cho API của bạn.
+
+**Thực hiện tại:** Terminal nội bộ.
+
+**Câu lệnh:**
+```bash
+gcloud run deploy fastapi-demo-project \
+  --image asia-southeast1-docker.pkg.dev/khanh-fastapi-deploy-937/fastapi-demo/fastapi-demo-project:latest \
+  --region asia-southeast1 \
+  --platform managed \
+  --allow-unauthenticated \
+  --port 8080
+```
+
+**Giải thích:**
+- `fastapi-demo-project`: Tên dịch vụ hiển thị trên Cloud Run.
+- `--image`: Đường dẫn đến Docker Image đã push lên ở Day 3.
+- `--allow-unauthenticated`: Cho phép bất kỳ ai trên Internet truy cập API mà không cần mã token xác thực (Public API).
+- `--port 8080`: Chỉ định Cloud Run dẫn luồng traffic (routing) vào đúng cổng 8080 mà uvicorn đang mở bên trong Container.
+
+**Kết quả mong đợi:**
+```text
+Deploying container to Cloud Run service [fastapi-demo-project] in project [khanh-fastapi-deploy-937] region [asia-southeast1]
+...
+Service [fastapi-demo-project] revision [fastapi-demo-project-00001-abc] has been deployed and is serving 100 percent of traffic.
+Service URL: https://fastapi-demo-project-xxx-as.a.run.app
+```
+
+**Cách xác nhận:**
+1. Mở URL vừa được trả về trong trình duyệt, thêm đuôi `/docs` (ví dụ: `https://.../docs`) để xem giao diện Swagger UI.
+2. Dùng lệnh CLI để lấy lại URL nếu quên:
+```bash
+gcloud run services describe fastapi-demo-project --region asia-southeast1 --format="value(status.url)"
+```
+
+**Khả năng chạy lại:** ✅ Lũy đẳng. Cloud Run sẽ tạo một **Revision (Bản sửa đổi)** mới nếu Image hoặc cấu hình thay đổi. Nếu giống hệt, nó sẽ giữ nguyên.
+
+---
+
+### Bước 2: Quản lý Biến môi trường (Environment Variables)
+
+**Mục đích:** Truyền cấu hình (vd: Môi trường chạy, Database URL, Secrets) vào Container lúc runtime mà không cần hard-code vào trong mã nguồn.
+
+**Câu lệnh mẫu (nếu cần cập nhật biến môi trường):**
+```bash
+gcloud run services update fastapi-demo-project \
+  --region asia-southeast1 \
+  --update-env-vars ENV=production,DEBUG=False
+```
+
+**Mô hình hoạt động (Execution Model) & Scaling:**
+- **Revisions:** Mỗi lần bạn update biến môi trường hoặc deploy image mới, Cloud Run tự động tạo một "Revision" bất biến. Bạn có thể chia phần trăm traffic (vd: 90% bản cũ, 10% bản mới) để test an toàn.
+- **Auto-scaling:** Cloud Run tự động tăng số lượng container (scale up) khi có nhiều request, và giảm về 0 (scale to zero) khi không ai truy cập để tiết kiệm chi phí.
+
+---
+
+### 🔴 Troubleshooting Day 4
+
+**Lỗi: Cloud Run không khởi động được (Startup Failed / HTTP 503)**
+- **Biểu hiện:** Giao diện Cloud Run báo `The user-provided container failed to start and listen on the port defined provided by the PORT=8080 environment variable.`
+- **Nguyên nhân:** Ứng dụng bên trong container đang lắng nghe sai cổng (FastAPI hay mặc định cổng 8000), trong khi Cloud Run mặc định yêu cầu nghe ở cổng 8080.
+- **Cách khắc phục:**
+  1. Mở file `Dockerfile` kiểm tra dòng cuối cùng `CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8080"]`.
+  2. Bắt buộc dùng `0.0.0.0` thay vì `127.0.0.1`.
+- **Cách kiểm tra log chi tiết:**
+  ```bash
+  gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=fastapi-demo-project" --limit 10
+  ```
+
+**Lỗi: Truy cập bị từ chối (HTTP 403 Forbidden)**
+- **Biểu hiện:** Dịch vụ Cloud Run chạy xanh nhưng vào URL thì báo `Error: Forbidden`.
+- **Nguyên nhân:** Quên thêm cờ `--allow-unauthenticated` lúc deploy. Dịch vụ đang đóng kín.
+- **Cách khắc phục:** 
+  ```bash
+  gcloud run services add-iam-policy-binding fastapi-demo-project \
+    --region="asia-southeast1" \
+    --member="allUsers" \
+    --role="roles/run.invoker"
+  ```
+
+---
+
+### 📝 Tổng hợp kết quả Day 4
+
+**Những gì đã thực hiện:**
+1. Kéo Image thực tế từ Artifact Registry và khởi chạy trên môi trường Serverless của Google.
+2. Thiết lập ánh xạ đúng cổng mạng (`PORT=8080`) và mở quyền truy cập cho tất cả người dùng (Public API).
+3. Đọc và hiểu được cách thiết lập biến môi trường, cơ chế Revisions, và Auto-scaling của Cloud Run.
+
+**Kết quả đạt được (Output):**
+Một dịch vụ **Cloud Run API công khai, hoạt động 100% trên Internet**. Bạn có thể gửi Endpoint URL cho bất kỳ ai trên thế giới để họ test thử trang Swagger UI của API ứng dụng. 
+*(Đây là thành quả quan trọng khép lại phần triển khai thủ công trước khi chuyển sang tự động hóa CI/CD ở Tuần 2).*
+
