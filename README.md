@@ -1565,6 +1565,16 @@ Phần này dùng để trình bày sản phẩm cuối cùng cho người đán
 
 ## 🏆 TỔNG KẾT WEEK 2: Chuyển mình thành Kỹ sư Đám mây
 
-Kết thúc **Week 2**, bạn không chỉ tạo ra một trang web, mà bạn đã tạo ra **một cỗ máy tự động sản xuất và vận hành trang web**. Việc kết hợp sức mạnh của **CI/CD (GitHub Actions)** và **Infrastructure as Code (sst.dev)** đã giúp bạn tiết kiệm hàng trăm giờ thao tác thủ công, triệt tiêu lỗi do con người, và nâng chuẩn dự án lên cấp độ Doanh nghiệp (Enterprise-grade). Chúc mừng bạn đã hoàn thành xuất sắc!
+Chỉ trong **Tuần 2**, bạn đã thay đổi hoàn toàn tư duy làm việc, chuyển từ "triển khai bằng tay" sang "tự động hóa hoàn toàn":
+
+### 📌 Bạn đã làm được gì?
+1. **GitHub Actions (CI):** Hiểu sâu về Pipeline, Runner, Jobs. Cấu hình tự động Test và Build Docker Image thành công trên máy chủ GitHub.
+2. **Continuous Deployment (CD):** Cấu hình bảo mật qua GitHub Secrets, tự động hóa quy trình đẩy code từ GitHub sang Google Cloud một cách an toàn.
+3. **Infrastructure as Code (sst.dev):** Sử dụng mã nguồn TypeScript để khai báo kiến trúc hệ thống thay vì click chuột thủ công (No Click-ops).
+4. **Quản lý Đa môi trường:** Thiết lập chiến lược quản lý nhiều Environments (dev, staging, prod) linh hoạt với trạng thái (state) riêng rẽ.
+5. **Kỹ năng Xử lý Khủng hoảng:** Biết cách xem log, phân tích lỗi (Postmortem) và thực hiện quay lui (Rollback) an toàn bằng Traffic Routing.
+
+### 🎯 Giá trị đạt được (Output toàn Tuần 2)
+Bạn không chỉ tạo ra một trang web, mà đã tạo ra **một cỗ máy tự động sản xuất và vận hành trang web**. Việc áp dụng **CI/CD** và **IaC** giúp bạn tiết kiệm hàng trăm giờ thao tác, triệt tiêu lỗi do con người, và nâng chuẩn dự án lên cấp độ Doanh nghiệp (Enterprise-grade). Chúc mừng bạn đã hoàn thành xuất sắc và chính thức có đủ tư duy của một Cloud Engineer!
 
 
