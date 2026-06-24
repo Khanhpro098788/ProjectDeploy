@@ -1578,3 +1578,75 @@ Chỉ trong **Tuần 2**, bạn đã thay đổi hoàn toàn tư duy làm việc
 Bạn không chỉ tạo ra một trang web, mà đã tạo ra **một cỗ máy tự động sản xuất và vận hành trang web**. Việc áp dụng **CI/CD** và **IaC** giúp bạn tiết kiệm hàng trăm giờ thao tác, triệt tiêu lỗi do con người, và nâng chuẩn dự án lên cấp độ Doanh nghiệp (Enterprise-grade). Chúc mừng bạn đã hoàn thành xuất sắc và chính thức có đủ tư duy của một Cloud Engineer!
 
 
+---
+
+### WEEK 3: Security, IAM & Networking in Practice
+
+#### 📅 DAY 11 — Advanced IAM (Quản lý Quyền truy cập Nâng cao)
+
+> **Mục tiêu:** Áp dụng nguyên tắc **Least Privilege (Đặc quyền tối thiểu)** và thắt chặt bảo mật kết nối giữa GitHub và Google Cloud bằng **Workload Identity Federation (WIF)** thay vì JSON Key.
+
+---
+
+### Bước 1: Khái niệm Cốt lõi về IAM
+- **Least-privilege:** Cấp đúng và đủ quyền, không cho dư. Nếu chỉ cần đọc, không cấp quyền sửa.
+- **Service Account (Robot Account):** Tài khoản dành cho máy móc. Ở cấp độ dự án thực tế, ta bắt buộc phải có ít nhất 2 loại:
+  1. **CI SA (`github-ci-sa`):** Chuyên đi giao hàng (Build & Deploy).
+  2. **Runtime SA (`cloudrun-runtime-sa`):** Chuyên gắn vào App lúc chạy để tương tác hệ thống (Ghi log, Gọi DB). Không bao giờ dùng chung 2 thân phận này để tránh nguy cơ bảo mật dây chuyền.
+
+---
+
+### Bước 2: Thiết lập WIF (Workload Identity Federation)
+**Mục đích:** Loại bỏ vĩnh viễn việc lưu file `gcp-key.json` rủi ro trên GitHub Secrets.
+
+**Cách hoạt động:**
+GCP tạo ra một "Phòng chờ" (Pool) và "Người xác thực" (Provider) cho GitHub. Nếu GitHub gửi yêu cầu thỏa mãn đúng điều kiện (Ví dụ: Yêu cầu từ kho code `Khanhpro098788/ProjectDeploy`), GCP sẽ tự động cấp một Token ngắn hạn để GitHub mượn danh tính của tài khoản `github-ci-sa` trong vòng 1 tiếng.
+
+**Áp dụng vào file `ci.yml`:**
+Chúng ta không dùng JSON Key nữa, mà thêm khối `permissions` và cấp `workload_identity_provider`:
+```yaml
+    permissions:
+      contents: 'read'
+      id-token: 'write' # Bắt buộc phải có để lấy token OIDC từ GitHub
+
+    steps:
+      - name: Google Auth (Workload Identity Federation)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/990324417574/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'github-ci-sa@khanh-fastapi-deploy-937.iam.gserviceaccount.com'
+```
+
+---
+
+### Bước 3: Ép Cloud Run chạy bằng Runtime SA
+**Mục đích:** Khiển Cloud Run không dùng tài khoản "khủng" mặc định của GCP nữa, mà dùng con Robot "yếu ớt" `cloudrun-runtime-sa` (chỉ có đúng quyền `logging.logWriter`).
+
+**Áp dụng vào file `sst.config.ts`:**
+```typescript
+      template: {
+        spec: {
+          serviceAccountName: "cloudrun-runtime-sa@khanh-fastapi-deploy-937.iam.gserviceaccount.com",
+          containers: [{ ... }]
+        }
+      }
+```
+
+---
+
+### Bước 4: Cách gỡ lỗi quyền (Debug IAM permission errors)
+Khi triển khai báo lỗi đỏ **403 Permission Denied**, cách tốt nhất không phải là đi mò, mà là đọc **Cloud Audit Logs**:
+1. Vào GCP Console -> **Logs Explorer**.
+2. Gõ câu truy vấn: `severity=ERROR AND "Permission denied"`.
+3. Log sẽ chỉ đích danh: "Tài khoản X đang cố làm Y nhưng thiếu quyền Z". Bạn chỉ việc thêm quyền Z cho tài khoản X.
+
+---
+
+### Bước 5: Ma trận truy cập (IAM Access Matrix)
+Đây là cách các kỹ sư chuyên nghiệp quản lý quyền hạn của hệ thống, sẵn sàng cho bất kỳ đợt kiểm toán (Audit) nào:
+
+| Đối tượng (Identity) | Phân loại | Role (Quyền được cấp) | Mục đích (Phạm vi) |
+| --- | --- | --- | --- |
+| **Vovan** | Human User | `Project Owner` | Quản trị viên tối cao, có thể setup, xóa dự án ban đầu. |
+| **github-ci-sa** | Service Account | `Artifact Registry Writer`<br>`Cloud Run Developer`<br>`Service Account User` | Dành cho GitHub Actions để đẩy Docker Image và ra lệnh cập nhật Cloud Run. |
+| **cloudrun-runtime-sa** | Service Account | `Logs Writer` | Gắn trực tiếp vào Cloud Run lúc chạy thực tế để ghi Log mà không làm lộ các quyền hạn khác. |
