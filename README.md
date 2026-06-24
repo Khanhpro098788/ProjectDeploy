@@ -507,6 +507,19 @@ gcloud iam service-accounts keys list \
 
 ---
 
+### 📝 Tổng hợp kết quả Day 1
+
+**Những gì đã thực hiện:**
+1. Tạo dự án GCP thực tế `khanh-fastapi-deploy-937`.
+2. Bật 3 API nền tảng: Cloud Run, Artifact Registry, IAM.
+3. Tạo và cấp đúng 3 quyền tối thiểu (Least Privilege) cho tài khoản robot `github-actions-bot`.
+4. Xuất file JSON credential an toàn, bỏ qua git và đưa vào GitHub Secrets.
+
+**Kết quả đạt được (Output):**
+Một vùng không gian **GCP Project an toàn, sạch sẽ** đã sẵn sàng. Bạn đã có trong tay một **Service Account đủ quyền lực** để CI/CD tự động deploy ở các ngày sau mà không cần dùng đến tài khoản cá nhân của bạn nữa.
+
+---
+
 #### 📅 DAY 2 — Docker Fundamentals & Containerization
 
 > **Mục tiêu:** Đóng gói ứng dụng FastAPI thành Docker Image tối ưu và chạy thử thành công trên máy local.
