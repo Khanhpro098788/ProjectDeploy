@@ -1695,4 +1695,123 @@ Tài liệu hóa mọi chìa khóa để sẵn sàng kiểm toán (Audit-ready).
 **Kết quả đạt được (Output):**
 **Hệ thống CI/CD và Cloud Run của bạn hiện đã đạt tiêu chuẩn Bảo mật Cấp cao (Enterprise-grade Security)**. Tài khoản có quyền thay đổi hạ tầng đã bị khóa chặt sau lớp bảo vệ WIF (không ai có thể đánh cắp chìa khóa vì nó không tồn tại ở dạng file). Đồng thời, ứng dụng đang phục vụ người dùng chỉ mang một danh tính "thấp bé" nhất định, đảm bảo dù ứng dụng có bị hack, hacker cũng không thể chiếm quyền điều khiển tài khoản Google Cloud của bạn.
 
+---
 
+#### 📅 DAY 12 — Private Services & Access Control (Dịch vụ riêng tư & Kiểm soát truy cập)
+
+> **Mục tiêu:** Biến dịch vụ Cloud Run từ một ứng dụng công cộng (ai cũng có thể truy cập) thành một **ốc đảo nội bộ**, chỉ cấp phép cho những tài khoản (hoặc dịch vụ) có thẩm quyền (IAM-based) và chỉ chấp nhận luồng giao thông (traffic) từ bên trong mạng lưới Google Cloud (Internal Ingress).
+
+---
+
+### Phần 1: Lý thuyết Trọng tâm (Từ khóa cần nhớ)
+
+1. **Public vs Private Cloud Run services:** Public là dịch vụ mở toang cửa cho toàn thế giới (`allUsers` có quyền `run.invoker`). Private là dịch vụ đã thu hồi quyền này, trả về lỗi 403 Forbidden đối với khách lạ.
+2. **IAM-based service invocation:** Thay vì dùng mật khẩu truyền thống, Google dùng hệ thống IAM để quản lý quyền. Ứng dụng "gọi" (Client) phải mang trong mình thẻ nhận diện (Identity Token) của một Service Account có chứa Role `roles/run.invoker`.
+3. **Identity Token (Thẻ căn cước):** Là một đoạn mã JWT (JSON Web Token) do Google Cloud cấp, chứng minh "Tôi là ai". Cần phân biệt nó với Access Token (dùng để gọi API của chính Google). Identity Token dùng để gọi *API của bạn* trên Cloud Run.
+4. **Ingress Control (Kiểm soát cửa xếp):** 
+   - `all`: Chấp nhận mọi kết nối từ Internet (dù có Token hay không thì request vẫn đến được Cloud Run, sau đó mới bị IAM chặn).
+   - `internal`: Rút luôn cầu treo. Máy tính nằm ngoài Internet thậm chí không thể chạm tới cửa của Cloud Run (nhận lỗi 404), bất kể có mang Token hay không. Phải dùng máy ảo hoặc dịch vụ nằm chung mạng VPC mới tiếp cận được.
+5. **Impersonate (Nhập xác/Mượn danh):** Kỹ năng dùng tài khoản cá nhân của bạn để sinh ra token dưới tư cách là một con robot (Service Account), dùng để test API mà không cần code frontend.
+
+---
+
+### Phần 2: Hướng dẫn Thực hành (Từng bước chi tiết)
+
+> **Kịch bản thực tế:** Bạn chỉ có API Backend. Để demo giao tiếp giữa 2 dịch vụ, ta sẽ tạo một con robot giả lập làm Frontend (có tên là `api-client-sa`). Sau đó bạn sẽ từ máy tính của mình "nhập xác" vào con robot này để gọi API Backend.
+
+**Bước 0: Khai báo biến môi trường (Windows CMD)**
+```cmd
+set PROJECT_ID=khanh-fastapi-deploy-937
+set REGION=asia-southeast1
+set SERVICE_NAME=fastapi-demo-project
+set CLIENT_SA=api-client-sa
+set CLIENT_EMAIL=%CLIENT_SA%@%PROJECT_ID%.iam.gserviceaccount.com
+set MY_EMAIL=vovankhanh937@gmail.com
+```
+
+**Bước 1: Cập nhật dịch vụ Backend thành Private (Đuổi khách vãng lai)**
+```cmd
+gcloud run services remove-iam-policy-binding %SERVICE_NAME% --region=%REGION% --member="allUsers" --role="roles/run.invoker"
+```
+*Giải thích:* Xóa quyền `run.invoker` của `allUsers`. Từ giây phút này, gọi API từ trình duyệt sẽ lập tức bị lỗi 403 Forbidden.
+
+**Bước 2: Tạo Service Account đóng vai "Frontend" (Client)**
+```cmd
+gcloud iam service-accounts create %CLIENT_SA% --display-name="API Client (Frontend Mock) Service Account"
+```
+*Giải thích:* Tạo tài khoản ảo làm đại diện cho ứng dụng Frontend sẽ gọi API của bạn.
+
+**Bước 3: Cấp quyền gọi API cho Frontend**
+```cmd
+gcloud run services add-iam-policy-binding %SERVICE_NAME% --region=%REGION% --member="serviceAccount:%CLIENT_EMAIL%" --role="roles/run.invoker"
+```
+*Giải thích:* Cho phép duy nhất SA này được phép gửi request vào Backend. Các SA khác vẫn bị cấm.
+
+**Bước 4: Cho phép máy tính của bạn "Mượn xác" Frontend**
+```cmd
+gcloud iam service-accounts add-iam-policy-binding %CLIENT_EMAIL% --member="user:%MY_EMAIL%" --role="roles/iam.serviceAccountTokenCreator"
+```
+*Giải thích:* Để dùng lệnh `curl` test dưới danh nghĩa robot, tài khoản Google của bạn phải có quyền `Token Creator` trên con robot đó.
+
+**Bước 5: Lấy URL dịch vụ và Test gọi API**
+Lấy URL:
+```cmd
+gcloud run services describe %SERVICE_NAME% --region=%REGION% --format="value(status.url)"
+```
+Gán URL vào biến:
+```cmd
+set URL=https://[DÁN_LINK_VỪA_LẤY_Ở_TRÊN_VÀO_ĐÂY]
+```
+Lấy Identity Token và gọi `curl` (chạy lệnh FOR để gán Token vào biến):
+```cmd
+FOR /F "tokens=*" %i IN ('gcloud auth print-identity-token --impersonate-service-account=%CLIENT_EMAIL% --audiences="%URL%"') DO set TOKEN=%i
+
+curl -H "Authorization: Bearer %TOKEN%" %URL%
+```
+*Giải thích:* Lệnh này đính kèm Identity Token vào Header. Cloud Run kiểm tra thẻ, nhận diện là người nhà, trả về 200 OK thay vì 403.
+
+**Bước 6: Khóa trái cửa (Cấu hình Ingress 'Internal')**
+Sau khi đã test `curl` thành công bằng IAM Token, bước cuối cùng là chặn hoàn toàn kết nối Internet.
+```cmd
+gcloud run services update %SERVICE_NAME% --region=%REGION% --ingress=internal
+```
+*Giải thích:* Dịch vụ trở thành ốc đảo. Dù có Token hợp lệ, nếu gửi request từ mạng Internet ngoài đường (như máy tính của bạn), nó sẽ bị chặn đứng lập tức.
+
+---
+
+### Phần 3: Cách kiểm chứng thành công
+
+Thực hiện 3 bài test sau trên CMD để đảm bảo cấu hình chính xác:
+
+1. **Test tính Private (Chặn người lạ):**
+   ```cmd
+   curl -i %URL%
+   ```
+   ✅ *Thành công nếu:* Nhận lỗi `HTTP/2 403` hoặc `404 Not Found`.
+
+2. **Test cấu hình Cửa xếp (Ingress):**
+   ```cmd
+   gcloud run services describe %SERVICE_NAME% --region=%REGION% --format="value(ingress)"
+   ```
+   ✅ *Thành công nếu:* Lệnh in ra chữ `internal`. Nghĩa là máy tính Windows của bạn (nằm ở Internet) không còn quyền đi đến cửa rào Cloud Run.
+
+3. **Test cấu hình IAM:**
+   ```cmd
+   gcloud run services get-iam-policy %SERVICE_NAME% --region=%REGION%
+   ```
+   ✅ *Thành công nếu:* Thấy tài khoản `api-client-sa` nằm dưới mục `role: roles/run.invoker` và tuyệt đối không có sự xuất hiện của `allUsers`.
+
+---
+
+### 📝 Tổng hợp kết quả Day 12
+
+**Những gì đã thực hiện:**
+1. Thu hồi quyền truy cập công cộng (`allUsers`) của Backend API.
+2. Triển khai phương pháp **IAM-based service invocation** bằng cách tạo riêng biệt một Client SA và cấp quyền `run.invoker`.
+3. Tự giả lập (Impersonate) vai trò Client SA để tạo Identity Token, qua đó test thành công giao thức bảo mật HTTP Bearer Authorization bằng `curl`.
+4. Rút hoàn toàn đường truyền mạng từ Internet vào Backend bằng cách siết chặt tham số **Ingress thành `internal`**.
+
+**Kết quả đạt được (Output):**
+Backend của bạn bây giờ được bảo vệ bởi **2 lớp giáp kiên cố**:
+- **Lớp mạng (Network Layer - Ingress):** Không cho bất kỳ ai không nằm trong Google VPC được quyền "nhìn thấy" dịch vụ (tránh DDOS, ping quét mạng).
+- **Lớp ứng dụng (Application Layer - IAM):** Dù kẻ gian có bằng cách nào đó lọt được vào mạng nội bộ VPC, chúng vẫn sẽ bị chặn ở cổng API vì không có trong tay thẻ Identity Token hợp lệ do hệ thống mật mã của Google ký nhận. Dịch vụ của bạn đã hoàn toàn ẩn mình và an toàn tuyệt đối.
