@@ -2052,3 +2052,79 @@ File `.github/workflows/ci.yml` đã được áp dụng bộ Cache 2 lớp mạ
 
 **Kết quả đạt được (Output):**
 Hệ thống của bạn đã thực sự đạt đến cảnh giới **Enterprise-grade**. Nó không chỉ an toàn ở mức cấu hình thủ công trên nền tảng đám mây, mà bản thân **kịch bản tự động hóa (CI/CD) cũng đã được gia cố để bảo vệ trạng thái an toàn đó**. Bạn hoàn toàn có thể tự tin đẩy code liên tục mà không bao giờ sợ ứng dụng bị lộ ra ngoài Internet.
+
+---
+
+#### 📅 DAY 16 — Cloud Logging (Khả năng Quan sát Hệ thống)
+
+> **Mục tiêu:** Cài đặt "Hộp đen" cho ứng dụng. Chuyển đổi toàn bộ log văn bản vô hồn (Unstructured) thành các khối dữ liệu JSON thông minh (Structured), tích hợp Trace ID để bắt bệnh toàn diện khi có sự cố.
+
+---
+
+### Phần 1: Lý thuyết Trọng tâm (Từ khóa cần nhớ)
+
+1. **Structured Log:** Ghi log theo chuẩn định dạng JSON (`{"event": "login", "status": 200}`). Bắt buộc phải dùng trên Cloud để máy móc có thể dễ dàng bóc tách, lọc, và tìm kiếm.
+2. **Logs Explorer:** Công cụ dò tìm siêu cấp của Google Cloud, giúp bạn tìm ra chính xác một dòng log bị lỗi giữa hàng triệu dòng log chỉ trong 0.1 giây.
+3. **Log Library:** Thư viện chuyên dụng (như `google-cloud-logging`) giúp ứng dụng tự động bọc mọi thứ thành JSON và ném lên Đám mây. Tuyệt đối không dùng lệnh `print()` thông thường.
+4. **Trace ID:** Dấu vân tay định danh của 1 yêu cầu (Request). Giúp xâu chuỗi toàn bộ vòng đời của yêu cầu đó xuyên suốt qua nhiều dịch vụ khác nhau.
+5. **Saved Queries:** Tính năng lưu lại những câu lệnh tìm kiếm quý giá trên Logs Explorer để tái sử dụng ngay khi hệ thống có biến (Incident).
+
+---
+
+### Phần 2: Cấu hình Thực hành (Từng bước chi tiết)
+
+**Bước 1: Nạp thêm Vũ khí Logging**
+Cài đặt thư viện chuyên dụng của Google vào file `requirements.txt`:
+```text
+google-cloud-logging>=3.0.0
+```
+
+**Bước 2: Viết Middleware Người Gác Cổng (Logger)**
+Tích hợp đoạn code sau vào `src/main.py` để tự động túm lấy `Trace ID` và ép mọi request thành chuẩn JSON:
+```python
+import google.cloud.logging
+client = google.cloud.logging.Client()
+client.setup_logging()
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    trace_header = request.headers.get("X-Cloud-Trace-Context", "unknown-trace")
+    # ... (Gói method, url, thời gian xử lý, status_code vào một cục JSON) ...
+    # Phân loại mức độ nghiêm trọng (INFO, ERROR, CRITICAL)
+```
+
+**Bước 3: Test trên Logs Explorer**
+* Tạm mở cửa Ingress mạng để gọi API từ bên ngoài.
+* Sử dụng cURL + Thẻ Identity Token để kích hoạt API.
+* Vào giao diện **Logs Explorer** và sử dụng cú pháp tìm kiếm sau để xem log xịn:
+```text
+resource.type="cloud_run_revision"
+resource.labels.service_name="fastapi-demo-project"
+jsonPayload.status_code >= 400
+```
+
+---
+
+### Phần 3: Tài liệu hóa Câu lệnh Log (Cloud Logging Cheat Sheet)
+
+Dưới đây là một số "câu thần chú" tìm kiếm log dùng trong quá trình vận hành sau này:
+
+| Mục đích tìm kiếm | Cú pháp Query (Logs Explorer) |
+|---|---|
+| **Tìm tất cả lỗi (ERROR/CRITICAL)** | `severity>=ERROR` |
+| **Tìm log theo 1 dịch vụ cụ thể** | `resource.labels.service_name="fastapi-demo-project"` |
+| **Lọc log theo mã lỗi HTTP 4xx, 5xx** | `jsonPayload.status_code >= 400` |
+| **Tìm toàn bộ vòng đời của 1 người dùng**| `jsonPayload.trace="<MÃ_TRACE_ID_COPY_ĐƯỢC_Ở_TRÊN>"` |
+
+---
+
+### 📝 Tổng hợp kết quả Day 16
+
+**Những gì đã thực hiện:**
+1. Thêm mới thư viện `google-cloud-logging` và khởi tạo Logging Handler chuẩn mực.
+2. Viết thành công một Middleware chặn ngay cửa ngõ FastAPI để bắt `Trace ID` và gán cờ Severity.
+3. Test thực chứng khả năng lọc log trên Logs Explorer của Google Cloud bằng cách giả lập lỗi 404.
+4. Đóng chặt cửa `Ingress=Internal` trở lại để bảo vệ ứng dụng ngay sau khi test xong.
+
+**Kết quả đạt được (Output):**
+Ứng dụng của bạn không còn bị "mù" nữa. Bây giờ nó đã có một chiếc **Hộp đen** xịn xò y hệt máy bay thương mại. Bất cứ ai chạm vào, bất cứ khi nào nó gặp sự cố, dù là nhỏ nhất, nó cũng sẽ sinh ra một thẻ bài JSON báo cáo thẳng lên Bộ Tư lệnh Google Cloud. Kỹ năng gõ lệnh trên Logs Explorer đã biến bạn thành một tay "Thám tử" đích thực trên Không gian mạng!
