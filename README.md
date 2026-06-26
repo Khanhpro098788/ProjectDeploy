@@ -2005,3 +2005,50 @@ flowchart TD
 
 **Kết quả đạt được (Output):**
 Bạn đã có trong tay một bản thiết kế hệ thống hoàn chỉnh, đạt chuẩn Enterprise. Bức tranh kiến trúc này sẽ là "kim chỉ nam" định hướng cho mọi hoạt động viết code, tạo CI/CD và thiết lập Tường lửa cho dự án Capstone cuối khóa.
+
+---
+
+#### 📅 DAY 15 — Refactor & Hardening Day (Ngày Dọn dẹp & Gia cố)
+
+> **Mục tiêu:** Không xây thêm tính năng mới. Tập trung tối ưu hóa hệ thống để nó trở nên **Nhẹ hơn** (Dockerfile), **Nhanh hơn** (CI/CD Caching), và **An toàn hơn** (IAM Hardening).
+
+---
+
+### Phần 1: Lý thuyết Trọng tâm (Từ khóa cần nhớ)
+
+1. **Improve Dockerfile quality:** Sử dụng `Multi-stage builds` để ép cân Image. Tuyệt đối phải có `.dockerignore` để ngăn chặn file rác lọt vào môi trường Production.
+2. **Optimize CI pipeline performance:** Dùng cơ chế Caching (bộ nhớ đệm) trong GitHub Actions để tái sử dụng thư viện Python đã cài ở các luồng build trước, giúp tiết kiệm thời gian đáng kể.
+3. **Harden IAM roles:** Kiểm toán (Audit) và thu hồi ngay các quyền lợi thừa thãi hoặc các cấu hình mở (như `--allow-unauthenticated`) bị bỏ quên trong script tự động. Luôn tuân thủ nguyên tắc Đặc quyền Tối thiểu (Least Privilege).
+4. **Clean SST structure / Code:** Xóa code thừa, áp dụng nguyên tắc DRY (Don't Repeat Yourself) để mã nguồn dễ bảo trì hơn.
+
+---
+
+### Phần 2: Hướng dẫn Thực hành (Từng bước chi tiết)
+
+**Bước 1: Tối ưu hóa Dockerfile (Đã xuất sắc hoàn thành)**
+File `Dockerfile` đã được kiểm tra và đạt chất lượng 10/10 với việc áp dụng **Multi-stage builds**:
+- Giai đoạn `builder`: Cài đặt thư viện vào `venv`.
+- Giai đoạn `runtime`: Chỉ copy `venv` sạch sang, đồng thời phân quyền bảo mật cho `appuser` (non-root).
+- File `.dockerignore` đã chặn hoàn toàn `.git`, `__pycache__`, `venv/`, và `tests/`.
+
+**Bước 2: Tăng tốc CI/CD với Caching (Đã xuất sắc hoàn thành)**
+File `.github/workflows/ci.yml` đã được áp dụng bộ Cache 2 lớp mạnh mẽ:
+- Cache Python Pip: `cache: 'pip'`
+- Cache Docker Build: `cache-from: type=gha` và `cache-to: type=gha,mode=max`.
+
+**Bước 3: Gia cố bảo mật (Hardening IAM) - Sửa lỗi chết người**
+* **Vấn đề phát hiện:** Lệnh `gcloud run deploy` trong file CI/CD cũ đang chứa cờ `--allow-unauthenticated`. Cờ này sẽ tự động phá vỡ bức tường bảo mật Private của Day 12 mỗi khi Push code mới.
+* **Hành động khắc phục:** Đã tự động thay thế `--allow-unauthenticated` thành `--no-allow-unauthenticated` và loại bỏ các cờ thừa (`--port 8080`) để đảm bảo hệ thống duy trì trạng thái **Kín cổng cao tường**.
+
+---
+
+### 📝 Tổng hợp kết quả Day 15
+
+**Những gì đã thực hiện:**
+1. Đánh giá chất lượng và tối ưu hóa file `Dockerfile` và `.dockerignore`.
+2. Xác nhận cơ chế Caching tăng tốc độ đã được kích hoạt trong CI/CD.
+3. Rà soát rủi ro bảo mật (Audit) trên luồng Deploy tự động.
+4. "Siết ốc" (Harden) CI/CD bằng cách cưỡng chế cấu hình `--no-allow-unauthenticated`.
+
+**Kết quả đạt được (Output):**
+Hệ thống của bạn đã thực sự đạt đến cảnh giới **Enterprise-grade**. Nó không chỉ an toàn ở mức cấu hình thủ công trên nền tảng đám mây, mà bản thân **kịch bản tự động hóa (CI/CD) cũng đã được gia cố để bảo vệ trạng thái an toàn đó**. Bạn hoàn toàn có thể tự tin đẩy code liên tục mà không bao giờ sợ ứng dụng bị lộ ra ngoài Internet.

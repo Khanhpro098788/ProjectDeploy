@@ -81,5 +81,4 @@ jobs:
             --image asia-southeast1-docker.pkg.dev/khanh-fastapi-deploy-937/fastapi-demo/fastapi-demo-project:${{ github.sha }} \
             --platform managed \
             --region asia-southeast1 \
-            --allow-unauthenticated \
-            --port 8080
+            --no-allow-unauthenticated
