@@ -73,6 +73,13 @@ async def health_check() -> dict[str, str]:
     return {"status": "healthy"}
 
 
+@app.get("/crash", tags=["Test"])
+async def crash_test():
+    """Endpoint cố tình tạo lỗi 500 để test cảnh báo Alerting (Day 17)."""
+    # Lỗi chia cho 0 sẽ tạo ra Internal Server Error (500)
+    return 1 / 0
+
+
 if __name__ == "__main__":
     import uvicorn
 

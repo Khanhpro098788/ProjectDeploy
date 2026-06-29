@@ -2128,3 +2128,60 @@ Dưới đây là một số "câu thần chú" tìm kiếm log dùng trong quá
 
 **Kết quả đạt được (Output):**
 Ứng dụng của bạn không còn bị "mù" nữa. Bây giờ nó đã có một chiếc **Hộp đen** xịn xò y hệt máy bay thương mại. Bất cứ ai chạm vào, bất cứ khi nào nó gặp sự cố, dù là nhỏ nhất, nó cũng sẽ sinh ra một thẻ bài JSON báo cáo thẳng lên Bộ Tư lệnh Google Cloud. Kỹ năng gõ lệnh trên Logs Explorer đã biến bạn thành một tay "Thám tử" đích thực trên Không gian mạng!
+
+---
+
+#### 📅 DAY 17 — Cloud Monitoring & Alerting (Giám sát và Cảnh báo)
+
+> **Mục tiêu:** Xây dựng Bảng điều khiển (Dashboard) để theo dõi sức khỏe hệ thống theo thời gian thực và thiết lập hệ thống Cảnh báo (Alerts) để tự động gọi Kỹ sư khi có sự cố, kèm theo Sổ tay xử lý (Runbooks).
+
+---
+
+### Phần 1: Lý thuyết Trọng tâm (Từ khóa cần nhớ)
+
+1. **Metrics và Dashboards:** Tương tự như đồng hồ tốc độ và kim xăng trên ô tô. Tập hợp các con số đo lường liên tục (CPU, Traffic, Latency) lên một bảng điều khiển duy nhất.
+2. **The 4 Golden Signals:** 4 Tín hiệu Vàng bắt buộc phải có trên bất kỳ Dashboard nào: 
+   - *Latency* (Độ trễ - web có nhanh không?)
+   - *Traffic* (Lưu lượng - có bao nhiêu request?)
+   - *Errors* (Lỗi - tỷ lệ 5xx là bao nhiêu?)
+   - *Saturation* (Bão hòa - CPU/RAM có bị đầy không?)
+3. **Alerting Policies & Notification Channels:** Chính sách cảnh báo (VD: Lỗi > 0 trong 5 phút) và Kênh nhận thông báo (Email, Slack, SMS).
+4. **Alert Fatigue (Bội thực cảnh báo):** Phải tinh chỉnh cảnh báo (Tune Alerts) để giảm nhiễu. Tránh tình trạng báo động giả liên tục khiến Kỹ sư bị chai lỳ cảm xúc và bỏ lỡ cảnh báo thật.
+5. **Runbooks / Playbooks:** Sổ tay hướng dẫn xử lý sự cố. Luôn phải đính kèm link Runbook vào trong tin nhắn cảnh báo để kỹ sư biết cách sửa lỗi ngay lập tức lúc nửa đêm.
+
+---
+
+### Phần 2: Hướng dẫn Cấu hình trên Google Cloud Web Console
+
+Đây là một bài thực hành ưu tiên thao tác kéo thả trên giao diện Web UI (Trực quan hơn gõ lệnh).
+
+**Bước 1: Tạo Bảng điều khiển Giám sát (Dashboard)**
+1. Mở trang Google Cloud Console -> **Monitoring** -> **Dashboards**.
+2. Tạo 2 Biểu đồ (Widget):
+   - **Tổng số Request:** Chọn Metric `Cloud Run Revision -> Request count`.
+   - **Độ trễ API:** Chọn Metric `Cloud Run Revision -> Request latencies`.
+
+**Bước 2: Tạo Kênh nhận Cảnh báo (Notification Channel)**
+1. Vào **Monitoring** -> **Alerting** -> **EDIT NOTIFICATION CHANNELS**.
+2. Thêm mới một địa chỉ Email (VD: Email của bạn) để làm nơi nhận báo động.
+
+**Bước 3: Cấu hình Cò súng Cảnh báo (Alert Policy)**
+1. Vào **Alerting** -> **CREATE POLICY**.
+2. **Metric:** Chọn `Cloud Run Revision -> Request count`.
+3. **Filter:** Thêm bộ lọc `response_code_class = 5xx` (Chỉ báo động khi lỗi 500).
+4. **Condition:** Chọn `Above threshold`, giá trị `0` (Tức là >= 1 lỗi là báo ngay).
+5. **Documentation:** Điền nội dung Runbook (VD: *"Hệ thống có lỗi 5xx. Vào Logs Explorer lọc severity=ERROR để kiểm tra ngay!"*).
+6. **Notification:** Chọn Email vừa tạo ở Bước 2.
+
+---
+
+### 📝 Tổng hợp kết quả Day 17
+
+**Những gì đã thực hiện:**
+1. Thấu hiểu khái niệm 4 Tín hiệu Vàng của Observability.
+2. Bổ sung một Endpoint "phá hoại" (`/crash`) vào mã nguồn `src/main.py` để cố tình sinh lỗi 500 phục vụ việc test Cảnh báo.
+3. Hướng dẫn chi tiết cách tạo Dashboard trực quan trên Google Cloud.
+4. Hướng dẫn thiết lập hệ thống Cảnh báo tự động gửi Email kèm Runbook khi phát hiện lỗi 5xx.
+
+**Kết quả đạt được (Output):**
+Hệ thống của bạn bây giờ không chỉ biết "Ghi chép" (Logging) mà còn biết "Lên tiếng" (Alerting). Thay vì bạn phải mòn mỏi ngồi canh màn hình đen mỗi ngày, hệ thống sẽ tự động theo dõi nhịp tim của chính nó, vẽ biểu đồ cho sếp xem, và chỉ gọi bạn dậy khi thực sự có "nhà cháy" (Lỗi 500). Bạn đã thực sự làm chủ được bộ kỹ năng vận hành (Operations) đỉnh cao của một Cloud Engineer!
