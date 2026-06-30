@@ -2237,7 +2237,18 @@ Hệ thống giám sát và vận hành của bạn hiện đã đạt tiêu chu
 1. **Di chuyển State lên AWS S3:** Thay đổi cấu hình `home: "aws"` trong `sst.config.ts`.
 2. **Cấu hình biến môi trường local:** Lưu trữ AWS Access Keys vào file `.env` (được ẩn bởi `.gitignore`) phục vụ local dev.
 3. **Cấu hình Dynamic Image Tag:** Refactor `sst.config.ts` để đọc động tag ảnh Docker thông qua biến `process.env.IMAGE_URL`.
-4. **Cấp quyền IAM cho robot CI:** Chạy gcloud cấp quyền `monitoring.admin` và `run.admin` cho `github-ci-sa` để nó có quyền tạo Alerts, Dashboard và gán IAM public-access.
+4. **Cấp quyền IAM cho robot CI:** Để robot CI (`github-ci-sa`) có quyền thao tác với các dịch vụ giám sát (Alerts, Dashboard, Notification Channel) và gán phân quyền công khai cho Cloud Run, chạy các lệnh gcloud sau dưới máy local:
+   ```powershell
+   # 1. Cấp quyền quản trị giám sát (Monitoring Admin) để tạo Alerts & Dashboard
+   gcloud projects add-iam-policy-binding khanh-fastapi-deploy-937 `
+     --member="serviceAccount:github-ci-sa@khanh-fastapi-deploy-937.iam.gserviceaccount.com" `
+     --role="roles/monitoring.admin"
+
+   # 2. Cấp quyền Cloud Run Admin để có thể thay đổi IAM Policy (run.services.setIamPolicy) mở public access
+   gcloud projects add-iam-policy-binding khanh-fastapi-deploy-937 `
+     --member="serviceAccount:github-ci-sa@khanh-fastapi-deploy-937.iam.gserviceaccount.com" `
+     --role="roles/run.admin"
+   ```
 5. **Nâng cấp file GitHub Actions Workflow:** Chỉnh sửa file `.github/workflows/ci.yml` tích hợp cài đặt Node.js 22 (LTS) và thực thi lệnh deploy tự động qua SST:
    ```yaml
    - name: Deploy to GCP via SST
