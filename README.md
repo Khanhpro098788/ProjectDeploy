@@ -2197,3 +2197,67 @@ GOOGLE_CLOUD_PROJECT=khanh-fastapi-deploy-937
 
 **Kết quả đạt được (Output):**
 Hệ thống giám sát và vận hành của bạn hiện đã đạt tiêu chuẩn doanh nghiệp (**Enterprise-grade Observability**). Mọi thay đổi về chỉ số cảnh báo, email nhận tin hay biểu đồ dashboard đều được lưu trong Git, dễ dàng nhân bản sang các môi trường staging/production khác chỉ trong vài giây. Bạn đã làm chủ được kỹ năng vận hành tự động hóa đỉnh cao của một Cloud Engineer!
+
+---
+
+#### 📅 DAY 18 — Production Readiness & Failure Testing (Sẵn sàng Vận hành và Giả lập Sự cố)
+
+> **Mục tiêu:** Thực hiện đánh giá tính sẵn sàng vận hành của ứng dụng (PRR), chủ động phá hủy hệ thống bằng các kịch bản lỗi thực tế (Failure Simulation) để kiểm thử độ chính xác của Alert và quy trình cứu hộ của On-call Engineer thông qua viết Postmortem.
+
+### Phần 1: Lý thuyết Trọng tâm
+* **Production Readiness Review (PRR):** Quy trình kiểm tra toàn diện các tiêu chí bảo mật, hiệu năng, giám sát trước khi Go-live.
+* **Failure Simulation:** Chủ động giả lập lỗi (ví dụ: HTTP 500) để xác thực hệ thống tự động phát hiện và cảnh báo.
+* **Incident Postmortem:** Viết báo cáo phân tích sự cố không đổ lỗi (Blameless) để ghi nhận nguyên nhân gốc rễ và đề xuất hành động ngăn ngừa tái diễn.
+
+### Phần 2: Các bước thực hiện
+1. **Lập Checklist sẵn sàng vận hành:** Tạo file `docs/production_readiness.md` đánh giá chi tiết dự án.
+2. **Kích hoạt lỗi Crash ứng dụng:** Sử dụng curl gửi request có kèm Identity Token tới endpoint `/crash` của dịch vụ Cloud Run:
+   ```powershell
+   curl.exe -i -H "Authorization: Bearer $env:TOKEN" "$env:URL/crash"
+   ```
+3. **Spam lỗi và kiểm chứng Alert:** Gửi liên tiếp 15 lỗi trong 1 phút. Nhận email cảnh báo Firing tự động đính kèm liên kết tới Sổ tay vận hành (Runbook) `docs/runbooks/alert_5xx.md`.
+4. **Viết báo cáo sau sự cố:** Biên soạn báo cáo Postmortem tại `docs/postmortems/incident_5xx_crash.md` theo phương pháp "5 Whys" để ngăn ngừa lỗi trong tương lai.
+
+### 📝 Tổng hợp kết quả Day 18
+* **Đã thực hiện:** Hoàn thiện Checklist PRR, spam lỗi `/crash` thành công nhận email cảnh báo về hòm thư, viết hoàn chỉnh Postmortem.
+* **Kết quả đạt được:** Quy trình vận hành và ứng phó sự cố của dự án đã sẵn sàng thực tế, đảm bảo thời gian khắc phục sự cố (MTTR) tối thiểu.
+
+---
+
+#### 📅 DAY 19 — Final Capstone Build (Xây dựng Hệ thống Hoàn chỉnh)
+
+> **Mục tiêu:** Di chuyển tệp trạng thái hạ tầng (State) lên lưu trữ đám mây tập trung AWS S3 và nâng cấp hoàn toàn pipeline CI/CD trên GitHub Actions sang tự động hóa deploy bằng SST.
+
+### Phần 1: Lý thuyết Trọng tâm
+* **Remote State Backend:** Lưu trữ file trạng thái (State) tập trung trên Cloud để tránh xung đột khi làm việc nhóm hoặc deploy từ nhiều môi trường.
+* **Lỗi bảo mật khi dùng `:latest`:** Việc sử dụng tag `:latest` trên production là một anti-pattern vì không đảm bảo tính bất biến của container và làm hỏng tính năng Rollback.
+* **Cơ chế WIF & IAM trong CI/CD:** Sử dụng OIDC kết nối an toàn giữa GitHub Actions Runner với GCP và AWS mà không cần lưu trữ key tĩnh.
+
+### Phần 2: Các bước thực hiện
+1. **Di chuyển State lên AWS S3:** Thay đổi cấu hình `home: "aws"` trong `sst.config.ts`.
+2. **Cấu hình biến môi trường local:** Lưu trữ AWS Access Keys vào file `.env` (được ẩn bởi `.gitignore`) phục vụ local dev.
+3. **Cấu hình Dynamic Image Tag:** Refactor `sst.config.ts` để đọc động tag ảnh Docker thông qua biến `process.env.IMAGE_URL`.
+4. **Cấp quyền IAM cho robot CI:** Chạy gcloud cấp quyền `monitoring.admin` và `run.admin` cho `github-ci-sa` để nó có quyền tạo Alerts, Dashboard và gán IAM public-access.
+5. **Nâng cấp file GitHub Actions Workflow:** Chỉnh sửa file `.github/workflows/ci.yml` tích hợp cài đặt Node.js 22 (LTS) và thực thi lệnh deploy tự động qua SST:
+   ```yaml
+   - name: Deploy to GCP via SST
+     env:
+       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+       IMAGE_URL: ...:${{ github.sha }}
+     run: npx sst deploy --stage dev
+   ```
+
+### 📝 Tổng hợp kết quả Day 19
+* **Đã thực hiện:** Chuyển đổi thành công Remote State sang AWS S3, phân quyền IAM GCP đầy đủ, nâng cấp thành công pipeline GitHub Actions.
+* **Kết quả đạt được:** Dự án đạt trạng thái tự động hóa hoàn toàn (**Fully Automated GitOps Pipeline**). Khi push code, hệ thống tự động kiểm thử, build Docker image, lưu trữ state lên AWS S3 và cập nhật hạ tầng giám sát lên GCP mà không cần can thiệp thủ công.
+
+---
+
+#### 📅 DAY 20 — Final Review & Handover (Tổng kết và Bàn giao)
+
+> **Mục tiêu:** Tổng kết toàn bộ lộ trình thực tập, rà soát lại các file nguồn và hoàn thiện tài liệu bàn giao kỹ thuật chuẩn chỉnh.
+
+### 📝 Tổng hợp kết quả Day 20
+* **Đã thực hiện:** Soạn thảo hoàn chỉnh báo cáo bàn giao dự án tại `docs/handover_report.md` bao gồm sơ đồ Mermaid kiến trúc hệ thống và hướng dẫn onboarding cho kỹ sư mới.
+* **Kết quả đạt được:** Khép lại lộ trình thực tập 20 ngày với một hệ thống API FastAPI hoàn thiện đạt chuẩn chất lượng doanh nghiệp (**Production-Ready Enterprise System**). Lập trình viên đã làm chủ được toàn bộ kỹ năng của một Cloud SRE/DevOps Engineer thực thụ!
