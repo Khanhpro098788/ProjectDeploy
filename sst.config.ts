@@ -5,7 +5,7 @@ export default $config({
     return {
       name: "fastapi-demo",
       removal: input?.stage === "production" ? "retain" : "remove",
-      home: "local", // SST lưu trạng thái tại AWS hoặc Cloudflare
+      home: "aws", // SST lưu trạng thái tại AWS S3
       providers: {
         gcp: "9.28.0", // Khai báo chính xác phiên bản GCP Provider
       },
@@ -17,7 +17,7 @@ export default $config({
     console.log(`Đang triển khai môi trường (stage): ${$app.stage}`);
 
     // 1. Chỉ định Image Docker mà ta đã push lên Artifact Registry ở Ngày 3 & 4
-    const imageUrl = "asia-southeast1-docker.pkg.dev/khanh-fastapi-deploy-937/fastapi-demo/fastapi-demo-project:latest";
+    const imageUrl = process.env.IMAGE_URL || "asia-southeast1-docker.pkg.dev/khanh-fastapi-deploy-937/fastapi-demo/fastapi-demo-project:048348536c6d0d6b52ade025b00957d98f9d9e78";
 
     // 2. Khai báo dịch vụ Cloud Run
     const service = new gcp.cloudrun.Service(`fastapi-service-${$app.stage}`, {
