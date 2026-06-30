@@ -2151,37 +2151,49 @@ Dưới đây là một số "câu thần chú" tìm kiếm log dùng trong quá
 
 ---
 
-### Phần 2: Hướng dẫn Cấu hình trên Google Cloud Web Console
+### Phần 2: Hướng dẫn Triển khai Hạ tầng Giám sát dưới dạng Mã (IaC với SST)
 
-Đây là một bài thực hành ưu tiên thao tác kéo thả trên giao diện Web UI (Trực quan hơn gõ lệnh).
+Thay vì thao tác thủ công (Click-ops) trên GCP Web UI dễ gây lệch trạng thái (State Drift), chúng ta khai báo toàn bộ hệ thống giám sát và cảnh báo trực tiếp trong file `sst.config.ts`.
 
-**Bước 1: Tạo Bảng điều khiển Giám sát (Dashboard)**
-1. Mở trang Google Cloud Console -> **Monitoring** -> **Dashboards**.
-2. Tạo 2 Biểu đồ (Widget):
-   - **Tổng số Request:** Chọn Metric `Cloud Run Revision -> Request count`.
-   - **Độ trễ API:** Chọn Metric `Cloud Run Revision -> Request latencies`.
+#### Bước 1: Cấu hình biến môi trường local (`.env`)
+Tạo file `.env` tại root project để Pulumi Provider tự động nhận dạng GCP Project ID mà không cần thiết lập lại ở mỗi phiên làm việc:
+```env
+GOOGLE_PROJECT=khanh-fastapi-deploy-937
+GOOGLE_CLOUD_PROJECT=khanh-fastapi-deploy-937
+```
 
-**Bước 2: Tạo Kênh nhận Cảnh báo (Notification Channel)**
-1. Vào **Monitoring** -> **Alerting** -> **EDIT NOTIFICATION CHANNELS**.
-2. Thêm mới một địa chỉ Email (VD: Email của bạn) để làm nơi nhận báo động.
+#### Bước 2: Khai báo các tài nguyên trong `sst.config.ts`
+1. **Thiết lập GCP Provider:** Bổ sung `gcp` vào block `providers` của `app()` để đồng bộ hóa các thư viện trong lõi SST.
+2. **Kênh nhận cảnh báo (Notification Channel):** Sử dụng `gcp.monitoring.NotificationChannel` khai báo kênh Email.
+3. **Cảnh báo lỗi 5xx (Alert Policy):** Sử dụng `gcp.monitoring.AlertPolicy` lọc metric `run.googleapis.com/request_count` với class `5xx`, tinh chỉnh thời gian trễ `60s` để giảm báo động giả và liên kết với Sổ tay vận hành (Runbook) tại `docs/runbooks/alert_5xx.md`.
+4. **Cảnh báo độ trễ Latency (Alert Policy):** Sử dụng `gcp.monitoring.AlertPolicy` lọc metric `run.googleapis.com/request_latencies`, giám sát phân vị `p95` (`ALIGN_PERCENTILE_95`) vượt quá `2000ms` (2 giây) liên tục trong 5 phút.
+5. **Bảng điều khiển hiệu năng (Performance Dashboard):** Sử dụng `gcp.monitoring.Dashboard` tự động vẽ biểu đồ trực quan hóa dữ liệu Traffic (Request Count) và Performance (Latency p95).
 
-**Bước 3: Cấu hình Cò súng Cảnh báo (Alert Policy)**
-1. Vào **Alerting** -> **CREATE POLICY**.
-2. **Metric:** Chọn `Cloud Run Revision -> Request count`.
-3. **Filter:** Thêm bộ lọc `response_code_class = 5xx` (Chỉ báo động khi lỗi 500).
-4. **Condition:** Chọn `Above threshold`, giá trị `0` (Tức là >= 1 lỗi là báo ngay).
-5. **Documentation:** Điền nội dung Runbook (VD: *"Hệ thống có lỗi 5xx. Vào Logs Explorer lọc severity=ERROR để kiểm tra ngay!"*).
-6. **Notification:** Chọn Email vừa tạo ở Bước 2.
+---
+
+### Phần 3: Triển khai và Xác thực
+
+1. **Xóa sạch cache cũ để nạp GCP Provider đồng bộ:**
+   ```powershell
+   Remove-Item -Recurse -Force .sst/
+   ```
+2. **Triển khai hạ tầng lên Google Cloud:**
+   ```powershell
+   npx sst deploy --stage dev
+   ```
+3. **Xác nhận kết quả:**
+   SST sẽ in ra tên (ID) của Alert Policies, Notification Channel và Dashboard vừa tạo thành công trên GCP. Em có thể truy cập Console để kiểm chứng kết quả tự động hóa mà không cần bấm chuột.
 
 ---
 
 ### 📝 Tổng hợp kết quả Day 17
 
 **Những gì đã thực hiện:**
-1. Thấu hiểu khái niệm 4 Tín hiệu Vàng của Observability.
-2. Bổ sung một Endpoint "phá hoại" (`/crash`) vào mã nguồn `src/main.py` để cố tình sinh lỗi 500 phục vụ việc test Cảnh báo.
-3. Hướng dẫn chi tiết cách tạo Dashboard trực quan trên Google Cloud.
-4. Hướng dẫn thiết lập hệ thống Cảnh báo tự động gửi Email kèm Runbook khi phát hiện lỗi 5xx.
+1. Thấu hiểu và áp dụng 4 Tín hiệu Vàng của Observability (Traffic, Latency, Errors) vào thực tế.
+2. Bổ sung một Endpoint "phá hoại" (`/crash`) vào mã nguồn `src/main.py` để tạo lỗi 500 chủ động nhằm kiểm thử Alert.
+3. Chuyển đổi toàn bộ tài nguyên giám sát từ click-ops sang **Infrastructure as Code (IaC)** trong `sst.config.ts`.
+4. Tinh chỉnh các chính sách cảnh báo chống chai lỳ (Alert Fatigue) thông qua cấu hình chu kỳ gom cụm (Window 1 phút cho 5xx và 5 phút cho Latency).
+5. Xây dựng tài liệu hướng dẫn xử lý sự cố chuẩn SRE và liên kết trực tiếp vào tin nhắn cảnh báo.
 
 **Kết quả đạt được (Output):**
-Hệ thống của bạn bây giờ không chỉ biết "Ghi chép" (Logging) mà còn biết "Lên tiếng" (Alerting). Thay vì bạn phải mòn mỏi ngồi canh màn hình đen mỗi ngày, hệ thống sẽ tự động theo dõi nhịp tim của chính nó, vẽ biểu đồ cho sếp xem, và chỉ gọi bạn dậy khi thực sự có "nhà cháy" (Lỗi 500). Bạn đã thực sự làm chủ được bộ kỹ năng vận hành (Operations) đỉnh cao của một Cloud Engineer!
+Hệ thống giám sát và vận hành của bạn hiện đã đạt tiêu chuẩn doanh nghiệp (**Enterprise-grade Observability**). Mọi thay đổi về chỉ số cảnh báo, email nhận tin hay biểu đồ dashboard đều được lưu trong Git, dễ dàng nhân bản sang các môi trường staging/production khác chỉ trong vài giây. Bạn đã làm chủ được kỹ năng vận hành tự động hóa đỉnh cao của một Cloud Engineer!
