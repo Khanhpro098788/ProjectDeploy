@@ -2265,10 +2265,35 @@ Hệ thống giám sát và vận hành của bạn hiện đã đạt tiêu chu
 
 ---
 
-#### 📅 DAY 20 — Final Review & Handover (Tổng kết và Bàn giao)
+#### 📅 DAY 20 — Final Evaluation & Capstone Submission (Đánh giá Cuối khóa và Bàn giao Dự án)
 
-> **Mục tiêu:** Tổng kết toàn bộ lộ trình thực tập, rà soát lại các file nguồn và hoàn thiện tài liệu bàn giao kỹ thuật chuẩn chỉnh.
+> **Mục tiêu:** Rà soát và đánh giá dự án Capstone đối chiếu với các yêu cầu kỹ thuật khắt khe của chương trình thực tập Cloud SRE/DevOps, hoàn thiện hồ sơ bàn giao kỹ thuật và nghiệm thu dự án.
+
+### Phần 1: Bảng đối chiếu yêu cầu tốt nghiệp (Capstone Requirements Matrix)
+
+| Yêu cầu tốt nghiệp (Capstone Requirement) | Trạng thái | Bằng chứng thực tế (Evidence) | Vị trí tệp tin nguồn |
+| --- | :---: | --- | --- |
+| **All infrastructure defined with SST** | ✅ Pass | Toàn bộ hạ tầng GCP (Cloud Run, Alert, Dashboard) & AWS Remote State được định nghĩa dạng Code. | [sst.config.ts](file:///C:/Users/ASUS/.gemini/antigravity/scratch/ProjectDeploy/sst.config.ts) |
+| **Clean Dockerfile & reproducible builds** | ✅ Pass | Dockerfile tối ưu hóa kích thước (multi-stage build), chạy FastAPI qua Uvicorn trên port 8080. | [Dockerfile](file:///C:/Users/ASUS/.gemini/antigravity/scratch/ProjectDeploy/Dockerfile) |
+| **GitHub Actions CI/CD pipeline** | ✅ Pass | Tự động hóa hoàn toàn từ bước kiểm thử code (`pytest`), đóng gói Docker image cho tới deploy bằng SST. | [.github/workflows/ci.yml](file:///C:/Users/ASUS/.gemini/antigravity/scratch/ProjectDeploy/.github/workflows/ci.yml) |
+| **Secure IAM with least privilege** | ✅ Pass | Sử dụng WIF kết nối GitHub Actions với GCP, tạo Service Accounts riêng biệt cho CI/CD và Runtime, áp dụng Cloud Run Ingress ở mức `internal`. | [docs/production_readiness.md](file:///C:/Users/ASUS/.gemini/antigravity/scratch/ProjectDeploy/docs/production_readiness.md) |
+| **Monitoring dashboards and alerting** | ✅ Pass | Tự động dựng Dashboard theo dõi Traffic/Performance và thiết lập Alert Policy (lỗi 5xx & độ trễ p95). | [sst.config.ts](file:///C:/Users/ASUS/.gemini/antigravity/scratch/ProjectDeploy/sst.config.ts#L79-L141) |
+| **Log queries and runbooks** | ✅ Pass | Tự động trace log thông qua trace ID và liên kết cảnh báo với tài liệu cứu hộ chuẩn. | [docs/runbooks/alert_5xx.md](file:///C:/Users/ASUS/.gemini/antigravity/scratch/ProjectDeploy/docs/runbooks/alert_5xx.md) |
+| **Live debugging demonstration** | ✅ Pass | Giả lập thành công sự cố App crash thông qua endpoint `/crash`, kích hoạt email cảnh báo GCP gửi trực tiếp link Runbook. | [docs/postmortems/incident_5xx_crash.md](file:///C:/Users/ASUS/.gemini/antigravity/scratch/ProjectDeploy/docs/postmortems/incident_5xx_crash.md) |
+
+---
+
+### Phần 2: Hồ sơ bàn giao nghiệm thu dự án (Submission Package)
+
+Hồ sơ tốt nghiệp dự án DevOps/SRE Capstone được đóng gói đầy đủ bao gồm các tài liệu kỹ thuật sau:
+1. **Mã nguồn và Cấu hình hạ tầng:** Đã được kiểm tra cú pháp và triển khai thành công thông qua GitOps Pipeline.
+2. **Báo cáo Bàn giao dự án (Project Handover Report):** [docs/handover_report.md](file:///C:/Users/ASUS/.gemini/antigravity/scratch/ProjectDeploy/docs/handover_report.md) (bao gồm sơ đồ Mermaid chi tiết dòng chảy hệ thống và hướng dẫn onboarding cho kỹ sư mới tiếp nhận).
+3. **Checklist Sẵn sàng vận hành (Production Readiness Checklist):** [docs/production_readiness.md](file:///C:/Users/ASUS/.gemini/antigravity/scratch/ProjectDeploy/docs/production_readiness.md) (lưu vết tự đánh giá tiêu chuẩn an toàn bảo mật, hiệu năng hệ thống).
+4. **Operations Runbook (Sổ tay vận hành):** [docs/runbooks/alert_5xx.md](file:///C:/Users/ASUS/.gemini/antigravity/scratch/ProjectDeploy/docs/runbooks/alert_5xx.md) (tài liệu cứu hộ xử lý sự cố lỗi 5xx).
+5. **Báo cáo sự cố giả lập (Postmortem Report):** [docs/postmortems/incident_5xx_crash.md](file:///C:/Users/ASUS/.gemini/antigravity/scratch/ProjectDeploy/docs/postmortems/incident_5xx_crash.md) (báo cáo phân tích nguyên nhân gốc rễ và hành động khắc phục lỗi crash).
+
+---
 
 ### 📝 Tổng hợp kết quả Day 20
-* **Đã thực hiện:** Soạn thảo hoàn chỉnh báo cáo bàn giao dự án tại `docs/handover_report.md` bao gồm sơ đồ Mermaid kiến trúc hệ thống và hướng dẫn onboarding cho kỹ sư mới.
-* **Kết quả đạt được:** Khép lại lộ trình thực tập 20 ngày với một hệ thống API FastAPI hoàn thiện đạt chuẩn chất lượng doanh nghiệp (**Production-Ready Enterprise System**). Lập trình viên đã làm chủ được toàn bộ kỹ năng của một Cloud SRE/DevOps Engineer thực thụ!
+* **Đã thực hiện:** Rà soát mã nguồn dự án, đối chiếu và hoàn thiện ma trận yêu cầu Capstone, tạo tài liệu bàn giao kỹ thuật chuẩn mực.
+* **Kết quả đạt được:** Hoàn thành xuất sắc và chính thức Go-live dự án Capstone. Hệ thống đạt chuẩn an toàn bảo mật cao, khả năng tự động hóa tuyệt đối và năng lực giám sát chủ động. Lập trình viên đã sẵn sàng tốt nghiệp kỳ thực tập với vai trò một Cloud Engineer chuyên nghiệp!
